@@ -6,6 +6,9 @@ export enum View {
   Utilities = 'Utilities',
   Safety = 'Safety',
   Community = 'Community',
+  TravelTips = 'TravelTips',
+  TimePass = 'TimePass',
+  AppDetail = 'AppDetail',
 }
 
 export interface Booking {
@@ -13,6 +16,7 @@ export interface Booking {
   type: 'Flight' | 'Hotel' | 'Train' | 'Activity';
   details: string;
   date: string;
+  time?: string;
   reminderSet?: boolean;
 }
 

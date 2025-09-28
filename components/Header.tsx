@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSearch } from '../contexts/SearchContext';
-import { SearchIcon, MoonIcon, SunIcon } from './icons/Icons';
+import { SearchIcon, MoonIcon, SunIcon, MicrophoneIcon } from './icons/Icons';
 import { View } from '../types';
 
 interface HeaderProps {
@@ -13,6 +13,64 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, toggleTheme }) => {
     const { searchQuery, setSearchQuery, performSearch, loading } = useSearch();
+    const [isListening, setIsListening] = useState(false);
+    // Using `any` as SpeechRecognition types are not standard across browsers
+    const recognitionRef = useRef<any>(null);
+
+    useEffect(() => {
+        // @ts-ignore - webkitSpeechRecognition is a vendor-prefixed API
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                setIsListening(true);
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error:", event.error);
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    alert("Voice input is blocked. Please allow microphone access in your browser settings.");
+                }
+                setIsListening(false);
+            };
+
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setSearchQuery(transcript);
+            };
+
+            recognitionRef.current = recognition;
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
+            }
+        };
+    }, [setSearchQuery]);
+
+    const handleVoiceInput = () => {
+        if (!recognitionRef.current) {
+            alert("Sorry, your browser doesn't support voice recognition.");
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            setSearchQuery('');
+            recognitionRef.current.start();
+        }
+    };
 
     const handleSearch = () => {
         if (searchQuery.trim()) {
@@ -50,10 +108,18 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Search for places, stories, hotels..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+                        placeholder={isListening ? "Listening..." : "Search for places, stories, hotels..."}
+                        className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         disabled={loading}
                     />
+                     <button
+                        onClick={handleVoiceInput}
+                        className={`absolute inset-y-0 right-0 flex items-center pr-4 focus:outline-none transition-colors duration-200 ${isListening ? 'text-orange-500 animate-pulse' : 'text-gray-500 hover:text-orange-500'}`}
+                        aria-label={isListening ? "Stop listening" : "Search with voice"}
+                        title={isListening ? "Stop listening" : "Search with voice"}
+                    >
+                        <MicrophoneIcon />
+                    </button>
                 </div>
             </div>
             

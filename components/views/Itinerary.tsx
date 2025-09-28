@@ -27,7 +27,10 @@ const ItineraryItem: React.FC<ItineraryItemProps> = ({ booking, onRemove, onTogg
         <div className="flex-1">
             <div className="flex justify-between items-center">
                 <h3 className="font-bold text-lg text-gray-800 dark:text-white">{booking.type}</h3>
-                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">{new Date(booking.date).toLocaleDateString()}</span>
+                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                    {new Date(booking.date).toLocaleDateString()}
+                    {booking.type === 'Flight' && booking.time && ` at ${booking.time}`}
+                </span>
             </div>
             <p className="text-gray-600 dark:text-gray-400">{booking.details}</p>
         </div>
@@ -61,6 +64,7 @@ const Itinerary: React.FC = () => {
   };
 
   useEffect(() => {
+    // User-set reminders for any booking type
     const checkReminders = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Normalize today's date to midnight
@@ -81,7 +85,34 @@ const Itinerary: React.FC = () => {
       });
     };
     
+    // Automatic 24-hour alert system for flights
+    const checkFlightAlerts = () => {
+        const now = new Date();
+        const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+
+        bookings.forEach(booking => {
+            if (booking.type === 'Flight' && booking.date && booking.time) {
+                try {
+                    const flightDateTime = new Date(`${booking.date}T${booking.time}`);
+                    const timeUntilFlight = flightDateTime.getTime() - now.getTime();
+
+                    // Check if the flight is within the next 24 hours but not in the past
+                    if (timeUntilFlight > 0 && timeUntilFlight <= twentyFourHoursInMs) {
+                        console.log(
+                            `%c[BHARAT PATH FLIGHT ALERT]`, 
+                            'color: #0d6efd; font-weight: bold;', 
+                            `Upcoming Flight: Your flight "${booking.details}" is scheduled for departure in less than 24 hours, at ${booking.time}.`
+                        );
+                    }
+                } catch(e) {
+                    console.error("Error parsing flight date/time for alert:", e);
+                }
+            }
+        });
+    };
+
     checkReminders();
+    checkFlightAlerts();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookings]);
 

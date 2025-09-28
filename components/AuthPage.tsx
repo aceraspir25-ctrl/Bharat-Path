@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AuthPageProps {
   onLoginSuccess: () => void;
@@ -37,6 +36,81 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onBack }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [passwordCriteria, setPasswordCriteria] = useState(passwordInitialState);
+  
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const [gsiState, setGsiState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [gsiError, setGsiError] = useState<string | null>(null);
+
+  // Poll for the Google Sign-In script to be loaded with a timeout.
+  useEffect(() => {
+    const POLLING_INTERVAL = 200;
+    const POLLING_TIMEOUT = 10000; // 10 seconds
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const timeout = setTimeout(() => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        setGsiState('error');
+        setGsiError('Google Sign-In failed to load. Please try again later.');
+      }
+    }, POLLING_TIMEOUT);
+
+    pollTimer = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setGsiState('ready');
+        clearInterval(pollTimer!);
+        clearTimeout(timeout);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => {
+      if (pollTimer) clearInterval(pollTimer);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // Initialize and render the Google Sign-In button once the script is available.
+  useEffect(() => {
+    if (gsiState === 'ready' && googleButtonRef.current) {
+      if (googleButtonRef.current.childElementCount > 0) {
+        return; // Button already rendered
+      }
+
+      try {
+        const clientId = process.env.API_KEY;
+        if (!clientId) {
+          console.error("API_KEY for Google Sign-In is missing. Google Sign-In will not work.");
+          setGsiState('error');
+          setGsiError('Google Sign-In is misconfigured. The required API key is missing.');
+          return;
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: any) => {
+            console.log("Google Sign-In successful from Auth page.");
+            onLoginSuccess();
+          },
+        });
+
+        window.google.accounts.id.renderButton(
+          googleButtonRef.current,
+          { 
+            theme: 'filled_blue', 
+            size: 'large', 
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+          }
+        );
+      } catch (error) {
+        console.error("Error initializing Google Sign-In:", error);
+        setGsiState('error');
+        setGsiError('Could not initialize Google Sign-In. The provided API key may be invalid.');
+      }
+    }
+  }, [gsiState, onLoginSuccess]);
+
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newPassword = e.target.value;
@@ -176,6 +250,26 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onBack }) => {
             </button>
           </div>
         </form>
+
+        <div className="relative flex py-5 items-center">
+            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+            <span className="flex-shrink mx-4 text-gray-500 dark:text-gray-400">or</span>
+            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+        </div>
+        
+        <div ref={googleButtonRef} className="w-full flex justify-center items-center h-[40px]">
+            {gsiState === 'loading' && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading Google Sign-In...</span>
+                </div>
+            )}
+            {gsiState === 'error' && <p className="text-xs text-red-500">{gsiError}</p>}
+        </div>
+
         <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
           {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
           <button onClick={toggleMode} className="font-medium text-orange-500 hover:text-orange-600 ml-1">

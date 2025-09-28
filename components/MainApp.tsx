@@ -10,6 +10,9 @@ import Itinerary from './views/Itinerary';
 import Utilities from './views/Utilities';
 import Safety from './views/Safety';
 import Community from './views/Community';
+import AppDetail from './views/AppDetail';
+import TravelTips from './views/TravelTips';
+import TimePass from './views/TimePass';
 
 interface MainAppProps {
   onLogout: () => void;
@@ -37,6 +40,12 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
         return <Safety />;
       case View.Community:
         return <Community />;
+      case View.TravelTips:
+        return <TravelTips />;
+      case View.TimePass:
+        return <TimePass />;
+      case View.AppDetail:
+        return <AppDetail />;
       default:
         return <Dashboard />;
     }

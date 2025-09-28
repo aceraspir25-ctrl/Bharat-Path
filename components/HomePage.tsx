@@ -1,53 +1,96 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface HomePageProps {
   onLogin: () => void;
   onShowAuth: () => void;
 }
 
-const logoSrc = "data:image/jpeg;base64,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 obscene amount of characters here /v/Q+r/o/T0/l/wDRH/o//wCHo/Q/9L/T+f8A0H736P0/H/wBH/p//4j+h/wCl/p/P/oP3v0fp+P8A6P8A0//APEf0P8A0v8AT+f/AEH736P0/H/0f+n//AIj+h/6X+n8/9F//2Q==";
+const logoSrc = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTI1Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNGRjk5MzMiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTM4ODA4IiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxwYXRoIGZpbGw9InVybCgjZ3JhZCkiIGQ9Ik01MCAwIEMyNSAwIDUgMjIgNSA1MCAxIDg1IDUwIDEyNSA1MCAxMjUgQzUwIDEyNSA5NSA4NSA5NSA1MCBDOTUgMjIgNzUgMCA1MCAwIFogTTUwIDc1IEMzNi4yIDc1IDI1IDYzLjggMjUgNTIgUzM2LjIgMjUgNTAgMjUgNzUgMzYuMiA3NSA1MCA2My44IDc1IDUwIDc1IFoiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxNSIgZmlsbD0iI0ZGRkZGRiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjEyIiBmaWxsPSIjMDAwMDgwIiIvPjwvc3ZnPg==";
 
 const AppLogo: React.FC = () => (
-    <div className="flex justify-center">
+    <div className="flex flex-col items-center">
         <img src={logoSrc} alt="Bharat Path Logo" className="w-48 h-48 rounded-3xl shadow-lg" />
+        <h2 className="mt-4 text-3xl font-extrabold bg-gradient-to-r from-orange-500 via-white to-green-600 bg-clip-text text-transparent">
+            Bharat Path
+        </h2>
     </div>
 );
 
 const HomePage: React.FC<HomePageProps> = ({ onLogin, onShowAuth }) => {
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const [gsiState, setGsiState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [gsiError, setGsiError] = useState<string | null>(null);
 
+  // Poll for the Google Sign-In script to be loaded with a timeout.
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.google || !googleButtonRef.current) {
-        return;
-    }
+    const POLLING_INTERVAL = 200;
+    const POLLING_TIMEOUT = 10000; // 10 seconds
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-    if (googleButtonRef.current.childElementCount > 0) {
-        return; // Button is already rendered, prevent duplicates
-    }
+    const timeout = setTimeout(() => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        setGsiState('error');
+        setGsiError('Google Sign-In failed to load. Please try again later.');
+      }
+    }, POLLING_TIMEOUT);
 
-    window.google.accounts.id.initialize({
-        // The Google Client ID MUST be obtained from the environment variable.
-        // It is assumed to be pre-configured, valid, and accessible.
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        callback: (response: any) => {
-            // A real app would verify the token on a backend server.
-            // For this demo, a successful callback is sufficient to log the user in.
+    pollTimer = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setGsiState('ready');
+        clearInterval(pollTimer!);
+        clearTimeout(timeout);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => {
+      if (pollTimer) clearInterval(pollTimer);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // Initialize and render the Google Sign-In button once the script is available.
+  useEffect(() => {
+    if (gsiState === 'ready' && googleButtonRef.current) {
+      if (googleButtonRef.current.childElementCount > 0) {
+        return; // Button already rendered
+      }
+
+      try {
+        const clientId = process.env.API_KEY;
+        if (!clientId) {
+          console.error("API_KEY for Google Sign-In is missing. Google Sign-In will not work.");
+          setGsiState('error');
+          setGsiError('Google Sign-In is misconfigured. The required API key is missing.');
+          return;
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: any) => {
             console.log("Google Sign-In successful.");
             onLogin();
-        },
-    });
+          },
+        });
 
-    window.google.accounts.id.renderButton(
-        googleButtonRef.current,
-        { 
+        window.google.accounts.id.renderButton(
+          googleButtonRef.current,
+          { 
             theme: 'filled_blue', 
             size: 'large', 
             text: 'continue_with',
             shape: 'rectangular',
             logo_alignment: 'left',
-        }
-    );
-  }, [onLogin]);
+          }
+        );
+      } catch (error) {
+        console.error("Error initializing Google Sign-In:", error);
+        setGsiState('error');
+        setGsiError('Could not initialize Google Sign-In. The provided API key may be invalid.');
+      }
+    }
+  }, [gsiState, onLogin]);
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-orange-100 via-white to-green-100 dark:from-gray-800 dark:via-gray-900 dark:to-teal-900 p-4">
@@ -79,7 +122,18 @@ const HomePage: React.FC<HomePageProps> = ({ onLogin, onShowAuth }) => {
             <span className="flex-shrink mx-4 text-gray-500 dark:text-gray-400">or</span>
             <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
         </div>
-        <div ref={googleButtonRef} className="w-full flex justify-center"></div>
+        <div ref={googleButtonRef} className="w-full flex justify-center items-center h-[40px]">
+            {gsiState === 'loading' && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading Google Sign-In...</span>
+                </div>
+            )}
+            {gsiState === 'error' && <p className="text-xs text-red-500">{gsiError}</p>}
+        </div>
       </div>
     </div>
   );
