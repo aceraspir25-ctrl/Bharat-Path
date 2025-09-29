@@ -1,5 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { AIResponse, AIBookingSuggestion } from '../types';
+import { AIResponse, AIBookingSuggestion, PlaceInfo, RouteDetails, GroundingChunk } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -44,12 +44,12 @@ export const getAIResponse = async (query: string): Promise<AIResponse> => {
     const isImageRequest = /image|picture|photo|show me|visualize/i.test(query);
 
     const model = 'gemini-2.5-flash';
-    const systemInstruction = `You are 'Path Darshak', an expert travel guide for India, specializing in its history, culture, and spiritual significance. Your name means 'one who shows the path'. Respond in a warm, engaging, and story-telling manner. If asked for suggestions like hotels or restaurants, provide them in the requested JSON format. Otherwise, provide a rich, narrative answer.`;
-
+    
     let aiResponse: AIResponse = {};
 
-    // Step 1: Get primary content (text or suggestions)
+    // Step 1: Get primary content (text, suggestions, or grounded response)
     if (isBookingRequest) {
+        const systemInstruction = `You are 'Path Darshak', an expert travel guide for India, specializing in its history, culture, and spiritual significance. Your name means 'one who shows the path'. When asked for suggestions like hotels or restaurants, provide them in the requested JSON format.`;
         const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: `Please suggest some hotels or restaurants related to this query: "${query}"`,
@@ -65,15 +65,21 @@ export const getAIResponse = async (query: string): Promise<AIResponse> => {
         aiResponse.suggestions = suggestions;
 
     } else {
+        // Use Google Search Grounding for all other queries
+        const systemInstruction = `You are 'Path Darshak', an expert travel guide for India, specializing in its history, culture, and spiritual significance. Your name means 'one who shows the path'. Use the provided search results from Google to create a comprehensive, accurate, and up-to-date response. Synthesize the information into a warm, engaging, and story-telling narrative. If the user asks a simple question, provide a direct and helpful answer based on the search results.`;
         const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: query,
             config: {
-                systemInstruction
+                systemInstruction,
+                tools: [{googleSearch: {}}],
             },
         });
         
         aiResponse.story = response.text;
+        if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+            aiResponse.groundingChunks = response.candidates[0].groundingMetadata.groundingChunks as GroundingChunk[];
+        }
     }
 
     // Step 2: If an image is requested, generate it and add to the response
@@ -262,5 +268,98 @@ export const getHotelSuggestions = async (location: string): Promise<AIBookingSu
   } catch (error) {
     console.error("Error fetching hotel suggestions:", error);
     throw new Error("Failed to get hotel suggestions from the AI.");
+  }
+};
+
+const placeInfoSchema = {
+    type: Type.OBJECT,
+    properties: {
+        history: {
+            type: Type.STRING,
+            description: "A brief, engaging history of the place (2-3 sentences)."
+        },
+        attractions: {
+            type: Type.ARRAY,
+            description: "A list of 3-4 key attractions.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING, description: "Name of the attraction." },
+                    description: { type: Type.STRING, description: "A one-sentence description of the attraction." }
+                },
+                required: ["name", "description"]
+            }
+        },
+        customs: {
+            type: Type.STRING,
+            description: "A short note on a local custom, etiquette tip, or unique local experience."
+        }
+    },
+    required: ["history", "attractions", "customs"]
+};
+
+export const getPlaceInformation = async (placeName: string): Promise<PlaceInfo> => {
+  try {
+    const model = 'gemini-2.5-flash';
+    const systemInstruction = `You are an expert travel guide for India. Provide a concise and informative summary for the requested location in the specified JSON format.`;
+    
+    const response: GenerateContentResponse = await ai.models.generateContent({
+        model,
+        contents: `Generate a travel guide summary for the following place in India: "${placeName}"`,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: placeInfoSchema
+        },
+    });
+
+    const jsonText = response.text.trim();
+    return JSON.parse(jsonText);
+
+  } catch (error) {
+    console.error("Error fetching place information:", error);
+    throw new Error("Failed to get information for this place from the AI.");
+  }
+};
+
+const routeDetailsSchema = {
+    type: Type.ARRAY,
+    description: "A list of turn-by-turn directions.",
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            instruction: { type: Type.STRING, description: "The navigation instruction for this step (e.g., 'Turn left onto Main St')." },
+            distance: { type: Type.STRING, description: "The distance for this step (e.g., '1.2 km')." },
+            duration: { type: Type.STRING, description: "The estimated time for this step (e.g., '5 mins')." }
+        },
+        required: ["instruction", "distance", "duration"]
+    }
+};
+
+export const getRouteDetails = async (start: { lat: number; lon: number }, destination: string): Promise<RouteDetails> => {
+  try {
+    const model = 'gemini-2.5-flash';
+    const systemInstruction = `You are a route planning assistant. Provide clear, turn-by-turn driving directions from the given start coordinates to the destination. The response must be in the specified JSON format. If a step is very short, combine it with the next one.`;
+    
+    const response: GenerateContentResponse = await ai.models.generateContent({
+        model,
+        contents: `Generate driving directions from start latitude ${start.lat}, longitude ${start.lon} to the following destination in India: "${destination}"`,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: routeDetailsSchema
+        },
+    });
+
+    const jsonText = response.text.trim();
+    const parsed = JSON.parse(jsonText);
+    if (!Array.isArray(parsed)) {
+      throw new Error("AI returned an invalid route format.");
+    }
+    return parsed;
+
+  } catch (error) {
+    console.error("Error fetching route details:", error);
+    throw new Error("Failed to get route details from the AI.");
   }
 };

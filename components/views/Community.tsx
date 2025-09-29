@@ -158,11 +158,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ name, setName, profilePic, se
                     ) : (
                         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{name}</h2>
                     )}
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center justify-center sm:justify-start space-x-4">
                         {isEditing ? (
                              <button onClick={handleSaveName} className="text-sm font-semibold text-green-500 hover:text-green-700 dark:hover:text-green-300">Save Name</button>
                         ) : (
-                             <button onClick={() => { setIsEditing(true); setTempName(name); }} className="text-sm font-semibold text-orange-500 hover:text-orange-700 dark:hover:text-orange-300">Edit Name</button>
+                            <>
+                                <button onClick={() => { setIsEditing(true); setTempName(name); }} className="text-sm font-semibold text-orange-500 hover:text-orange-700 dark:hover:text-orange-300">Edit Name</button>
+                                <button onClick={handleTakePhoto} className="text-sm font-semibold text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">Take Picture</button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -241,7 +244,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ authorName, authorPic, onPost }
 };
 
 // --- POST FEED COMPONENT --- //
-const PostItem: React.FC<{ post: Post }> = ({ post }) => {
+interface PostItemProps {
+    post: Post;
+    onDelete: (id: string) => void;
+}
+const PostItem: React.FC<PostItemProps> = ({ post, onDelete }) => {
     const timeAgo = (timestamp: number): string => {
         const seconds = Math.floor((Date.now() - timestamp) / 1000);
         let interval = seconds / 31536000;
@@ -259,14 +266,21 @@ const PostItem: React.FC<{ post: Post }> = ({ post }) => {
 
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center mb-3">
+            <div className="flex items-start mb-3">
                 <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
                     {post.authorPic ? <img src={post.authorPic} alt={post.authorName} className="w-full h-full object-cover" /> : <DefaultProfileIcon />}
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-1">
                     <p className="font-bold text-gray-800 dark:text-white">{post.authorName}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{timeAgo(post.timestamp)}</p>
                 </div>
+                 <button 
+                    onClick={() => onDelete(post.id)} 
+                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1 rounded-full"
+                    aria-label="Delete post"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
             </div>
             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{post.content}</p>
             {post.image && (
@@ -287,6 +301,12 @@ const Community: React.FC = () => {
         setPosts(prevPosts => [newPost, ...prevPosts]);
     };
 
+    const handleDeletePost = (postId: string) => {
+        if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+            setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+        }
+    };
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="text-center mb-8">
@@ -303,7 +323,7 @@ const Community: React.FC = () => {
         <UserProfile name={name} setName={setName} profilePic={profilePic} setProfilePic={setProfilePic} />
         <CreatePost authorName={name} authorPic={profilePic} onPost={handleNewPost} />
         <div className="space-y-4">
-            {posts.map(post => <PostItem key={post.id} post={post} />)}
+            {posts.map(post => <PostItem key={post.id} post={post} onDelete={handleDeletePost} />)}
         </div>
       </div>
     </div>

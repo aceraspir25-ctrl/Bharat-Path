@@ -86,6 +86,19 @@ export const ExternalLinkIcon: React.FC<{className?: string}> = ({className}) =>
     <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
 );
 
+export const CompassIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16l2.879-2.879a1 1 0 011.414 0L15 16m-4-5v5m0 0l-2.879 2.879a1 1 0 01-1.414 0L4 16m5 5a9 9 0 1118 0 9 9 0 01-18 0z" />
+    </Icon>
+);
+
+export const RouteIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V4a2 2 0 00-2-2h-1a2 2 0 00-2 2v12a2 2 0 002 2h1a2 2 0 002-2zm-3 0V4m3 12h2.586a1 1 0 00.707-.293l3.414-3.414a1 1 0 000-1.414l-3.414-3.414A1 1 0 0015.586 7H13" />
+    </Icon>
+);
+
+
 // --- Train Booking Form Icons --- //
 const UtilityIcon: React.FC<{ children: React.ReactNode, size?: string }> = ({ children, size = "w-8 h-8" }) => (
     <div className={`text-red-500 ${size}`}>{children}</div>
@@ -125,4 +138,28 @@ export const AadhaarIcon: React.FC = () => (
 
 export const IrctcPartnerIcon: React.FC = () => (
     <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+);
+
+export const QRIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 4h6m-6-4h.01" />
+    </Icon>
+);
+
+export const PaymentIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </Icon>
+);
+
+export const MobileRechargeIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </Icon>
+);
+
+export const HistoryIcon: React.FC = () => (
+    <Icon>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </Icon>
 );

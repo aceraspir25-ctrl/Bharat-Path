@@ -1,6 +1,189 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
+import { Transaction, PlaceInfo, RouteDetails } from '../../types';
+import { PaymentIcon, MobileRechargeIcon, HistoryIcon, QRIcon, CompassIcon, RouteIcon } from '../icons/Icons';
+import { getPlaceInformation, getRouteDetails } from '../../services/geminiService';
+
+
+// --- PLACE FINDER COMPONENT --- //
+const PlaceFinder: React.FC = () => {
+    const [query, setQuery] = useState('');
+    const [result, setResult] = useState<PlaceInfo | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // New state for routing
+    const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
+    const [isFetchingRoute, setIsFetchingRoute] = useState(false);
+    const [routeError, setRouteError] = useState<string | null>(null);
+    const [startLocation, setStartLocation] = useState<{ lat: number; lon: number } | null>(null);
+
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!query.trim()) return;
+
+        setLoading(true);
+        setError(null);
+        setResult(null);
+        // Reset route info on new search
+        setRouteDetails(null);
+        setRouteError(null);
+
+        try {
+            const info = await getPlaceInformation(query);
+            setResult(info);
+        } catch (err: any) {
+            setError(err.message || 'Could not find information for this place.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+     // New handler for getting directions
+    const handleGetDirections = () => {
+        if (!result) return;
+        
+        setIsFetchingRoute(true);
+        setRouteError(null);
+        setRouteDetails(null);
+
+        const fetchRoute = (location: { lat: number; lon: number }) => {
+            getRouteDetails(location, query)
+                .then(details => {
+                    setRouteDetails(details);
+                })
+                .catch(err => {
+                    setRouteError(err.message || "Could not fetch route.");
+                })
+                .finally(() => {
+                    setIsFetchingRoute(false);
+                });
+        };
+
+        if (startLocation) {
+            fetchRoute(startLocation);
+        } else {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const location = {
+                            lat: position.coords.latitude,
+                            lon: position.coords.longitude
+                        };
+                        setStartLocation(location);
+                        fetchRoute(location);
+                    },
+                    (geoError) => {
+                        setRouteError(`Geolocation error: ${geoError.message}. Please enable location services.`);
+                        setIsFetchingRoute(false);
+                    }
+                );
+            } else {
+                setRouteError("Geolocation is not supported by your browser.");
+                setIsFetchingRoute(false);
+            }
+        }
+    };
+
+    // New component for displaying route details
+    const RouteDisplay: React.FC<{ route: RouteDetails }> = ({ route }) => (
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h5 className="font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                <RouteIcon /> <span className="ml-2">Directions to {query}</span>
+            </h5>
+            <ol className="relative border-l border-gray-200 dark:border-gray-700 space-y-4 pl-6">
+                {route.map((step, index) => (
+                    <li key={index} className="ml-4">
+                        <div className="absolute w-3 h-3 bg-gray-200 rounded-full mt-1.5 -left-1.5 border border-white dark:border-gray-900 dark:bg-gray-700"></div>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{step.instruction}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {step.distance && <span>{step.distance}</span>}
+                            {step.distance && step.duration && <span className="mx-1">·</span>}
+                            {step.duration && <span>{step.duration}</span>}
+                        </p>
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
+
+    return (
+        <div className="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4 flex items-center">
+                <CompassIcon /> <span className="ml-2">Place Finder</span>
+            </h3>
+            <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+                <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="e.g., Varanasi, Hampi, etc."
+                    className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <button type="submit" disabled={loading || !query.trim()} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-600 disabled:bg-orange-300">
+                    {loading ? '...' : 'Search'}
+                </button>
+            </form>
+
+            {loading && <p className="text-center text-gray-500 dark:text-gray-400 py-4">Finding place details...</p>}
+            {error && <p className="text-center text-red-500 dark:text-red-400 py-4">{error}</p>}
+
+            {result && (
+                <div className="space-y-4 animate-fadeIn">
+                    <h4 className="text-xl font-bold text-gray-800 dark:text-white border-b-2 border-orange-500 pb-2">About {query}</h4>
+                    <div>
+                        <h5 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">History</h5>
+                        <p className="text-gray-600 dark:text-gray-400">{result.history}</p>
+                    </div>
+                    <div>
+                        <h5 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Key Attractions</h5>
+                        <ul className="space-y-2">
+                            {result.attractions.map(attraction => (
+                                <li key={attraction.name} className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                                    <strong className="text-gray-800 dark:text-gray-200">{attraction.name}:</strong>
+                                    <span className="text-gray-600 dark:text-gray-400 ml-1">{attraction.description}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div>
+                        <h5 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Local Tip</h5>
+                        <p className="text-gray-600 dark:text-gray-400">{result.customs}</p>
+                    </div>
+
+                    {/* New Directions Button */}
+                    <div className="mt-4">
+                        <button 
+                            onClick={handleGetDirections} 
+                            disabled={isFetchingRoute}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center disabled:bg-blue-300 transition-colors"
+                        >
+                            {isFetchingRoute ? (
+                                <>
+                                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                 </svg>
+                                 Getting Directions...
+                                </>
+                            ) : (
+                                <>
+                                  <RouteIcon /> <span className="ml-2">Get Directions</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* New Route Display Area */}
+                    {routeError && <p className="text-center text-sm text-red-500 dark:text-red-400 mt-2">{routeError}</p>}
+                    {routeDetails && <RouteDisplay route={routeDetails} />}
+
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 // --- CURRENCY CONVERTER COMPONENT --- //
 
@@ -433,7 +616,7 @@ const Translator: React.FC = () => {
                         className="translator-textarea"
                     />
                     <button onClick={handleSpeak} disabled={!translatedText} className="absolute bottom-2 right-2 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-50">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 7a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zm-2 4a1 1 0 100 2h5a1 1 0 100-2H9z" clipRule="evenodd" /><path d="M4 7a1 1 0 011-1h2a1 1 0 110 2H5a1 1 0 01-1-1z" /></svg>
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5.33 4.022a2 2 0 011.787 0l8 4.5a2 2 0 010 3.556l-8 4.5a2 2 0 01-2.667-1.778V5.8a2 2 0 01.88-1.778z" /></svg>
                     </button>
                 </div>
             </div>
@@ -573,8 +756,436 @@ const WorldClock: React.FC = () => {
     );
 };
 
+// --- QR SCANNER PAYMENT COMPONENT --- //
+const QRScannerPayment: React.FC<{ onNewTransaction: (transaction: Transaction) => void }> = ({ onNewTransaction }) => {
+    const [isScanning, setIsScanning] = useState(false);
+    const [scannedData, setScannedData] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [isConfirming, setIsConfirming] = useState(false);
+    const [paymentDetails, setPaymentDetails] = useState<{ name: string; address: string; amount: string | null; } | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const animationFrameId = useRef<number | null>(null);
+
+    const stopScan = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+            animationFrameId.current = null;
+        }
+        setIsScanning(false);
+    };
+
+    const startScan = async () => {
+        if (!('BarcodeDetector' in window)) {
+            setError('QR code scanning is not supported by your browser.');
+            return;
+        }
+        setIsScanning(true);
+        setError(null);
+        try {
+            streamRef.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            if (videoRef.current) {
+                videoRef.current.srcObject = streamRef.current;
+                await videoRef.current.play(); // Important for iOS
+            }
+
+            const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+            
+            const detect = async () => {
+                if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+                try {
+                    const barcodes = await barcodeDetector.detect(videoRef.current);
+                    if (barcodes.length > 0 && barcodes[0].rawValue) {
+                        setScannedData(barcodes[0].rawValue);
+                        stopScan();
+                    } else {
+                        animationFrameId.current = requestAnimationFrame(detect);
+                    }
+                } catch (err) {
+                    console.error("Barcode detection failed:", err);
+                    animationFrameId.current = requestAnimationFrame(detect);
+                }
+            };
+            
+            detect();
+
+        } catch (err) {
+            setError('Could not access camera. Please check permissions.');
+            setIsScanning(false);
+        }
+    };
+
+    useEffect(() => {
+        if (scannedData) {
+            try {
+                const url = new URL(scannedData);
+                if (url.protocol !== 'upi:') {
+                    throw new Error('Not a valid UPI QR code.');
+                }
+                const params = url.searchParams;
+                const payeeName = params.get('pn') || 'Merchant';
+                const payeeAddress = params.get('pa');
+                const amount = params.get('am');
+
+                if (!payeeAddress) {
+                    throw new Error('QR code is missing a payee address.');
+                }
+                
+                setPaymentDetails({ name: payeeName, address: payeeAddress, amount: amount });
+                if (amount) { setPaymentAmount(amount); }
+                setIsConfirming(true);
+            } catch (e: any) {
+                setError(e.message || 'Invalid or unsupported QR code format.');
+                setTimeout(() => setError(null), 4000);
+                setScannedData(null);
+            }
+        }
+    }, [scannedData]);
+
+    const handleConfirmPayment = () => {
+        if (!paymentDetails || !paymentAmount || parseFloat(paymentAmount) <= 0) {
+            return;
+        }
+        const newTransaction: Transaction = {
+            id: new Date().toISOString(),
+            type: 'QR Payment',
+            description: `Paid to ${paymentDetails.name}`,
+            amount: parseFloat(paymentAmount),
+            date: new Date().toISOString(),
+            status: 'Completed',
+        };
+        onNewTransaction(newTransaction);
+        handleCancelConfirmation();
+    };
+
+    const handleCancelConfirmation = () => {
+        setIsConfirming(false);
+        setPaymentDetails(null);
+        setScannedData(null);
+        setPaymentAmount('');
+    };
+
+    return (
+        <div className="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            {isScanning && (
+                <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 p-4">
+                    <video ref={videoRef} className="w-full max-w-md h-auto rounded-lg" playsInline />
+                    <button onClick={stopScan} className="mt-4 px-6 py-2 rounded-md font-medium text-white bg-red-500 hover:bg-red-600">
+                        Cancel
+                    </button>
+                </div>
+            )}
+            {isConfirming && paymentDetails && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={handleCancelConfirmation}>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Confirm QR Payment</h4>
+                        <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                            <div className="flex justify-between">
+                                <span className="font-medium text-gray-500 dark:text-gray-400">Paying to:</span>
+                                <span className="font-semibold">{paymentDetails.name}</span>
+                            </div>
+                            <div className="flex justify-between items-center border-t border-gray-200 dark:border-gray-600 pt-3 mt-3">
+                                <label htmlFor="qrPaymentAmount" className="font-bold text-lg">Amount (₹):</label>
+                                <input
+                                    type="number"
+                                    id="qrPaymentAmount"
+                                    value={paymentAmount}
+                                    onChange={e => setPaymentAmount(e.target.value)}
+                                    readOnly={!!paymentDetails.amount}
+                                    className="w-32 text-right text-lg font-bold text-orange-600 dark:text-orange-400 bg-gray-100 dark:bg-gray-700 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    min="1"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end space-x-3">
+                            <button onClick={handleCancelConfirmation} className="px-4 py-2 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">
+                                Cancel
+                            </button>
+                            <button onClick={handleConfirmPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300">
+                                Pay Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4 flex items-center">
+                <QRIcon /> <span className="ml-2">Scan & Pay</span>
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Make instant payments to merchants by scanning any UPI QR code.
+            </p>
+            <button onClick={startScan} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-md transition-colors flex items-center justify-center">
+                <QRIcon /> <span className="ml-2">Scan QR to Pay</span>
+            </button>
+            {error && <p className="text-center text-sm text-red-500 dark:text-red-400 mt-2">{error}</p>}
+        </div>
+    );
+};
+
+
+// --- PAYMENT COMPONENT --- //
+const Payments: React.FC<{ onNewTransaction: (transaction: Transaction) => void }> = ({ onNewTransaction }) => {
+    const [category, setCategory] = useState('Electricity');
+    const [consumerId, setConsumerId] = useState('');
+    const [amount, setAmount] = useState('');
+    const [feedback, setFeedback] = useState('');
+    const [isConfirming, setIsConfirming] = useState(false);
+    const [paymentDetails, setPaymentDetails] = useState<{ category: string; consumerId: string; amount: string; } | null>(null);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!consumerId || !amount) {
+            setFeedback('Please fill all fields.');
+            setTimeout(() => setFeedback(''), 3000);
+            return;
+        }
+        setPaymentDetails({ category, consumerId, amount });
+        setIsConfirming(true);
+        setFeedback(''); // Clear previous feedback
+    };
+
+    const handleConfirmPayment = () => {
+        if (!paymentDetails) return;
+
+        const newTransaction: Transaction = {
+            id: new Date().toISOString(),
+            type: 'Bill Payment',
+            description: `${paymentDetails.category} Bill for ${paymentDetails.consumerId}`,
+            amount: parseFloat(paymentDetails.amount),
+            date: new Date().toISOString(),
+            status: 'Completed',
+        };
+        onNewTransaction(newTransaction);
+        
+        setFeedback('Payment successful!');
+        setTimeout(() => setFeedback(''), 3000);
+
+        setConsumerId('');
+        setAmount('');
+        setIsConfirming(false);
+        setPaymentDetails(null);
+    };
+
+    const handleCancelConfirmation = () => {
+        setIsConfirming(false);
+        setPaymentDetails(null);
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            {isConfirming && paymentDetails && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={handleCancelConfirmation}>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Confirm Payment</h4>
+                        <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                            <div className="flex justify-between">
+                                <span className="font-medium text-gray-500 dark:text-gray-400">Category:</span>
+                                <span className="font-semibold">{paymentDetails.category}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium text-gray-500 dark:text-gray-400">Consumer ID:</span>
+                                <span className="font-semibold">{paymentDetails.consumerId}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-3 mt-3">
+                                <span className="font-bold text-lg">Amount:</span>
+                                <span className="font-bold text-lg text-orange-600 dark:text-orange-400">₹{parseFloat(paymentDetails.amount).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end space-x-3">
+                            <button onClick={handleCancelConfirmation} className="px-4 py-2 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">
+                                Cancel
+                            </button>
+                            <button onClick={handleConfirmPayment} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-orange-500 hover:bg-orange-600">
+                                Confirm & Pay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4 flex items-center">
+                <PaymentIcon /> <span className="ml-2">Bill Payments</span>
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+                    <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1 w-full pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option>Electricity</option>
+                        <option>Water</option>
+                        <option>Gas</option>
+                        <option>Broadband</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="consumerId" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Consumer ID</label>
+                    <input type="text" id="consumerId" value={consumerId} onChange={e => setConsumerId(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600" />
+                </div>
+                <div>
+                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount (₹)</label>
+                    <input type="number" id="paymentAmount" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600" min="1" />
+                </div>
+                <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Pay Bill</button>
+                {feedback && <p className="text-center text-sm text-green-600 dark:text-green-400 mt-2">{feedback}</p>}
+            </form>
+        </div>
+    );
+};
+
+// --- MOBILE RECHARGE COMPONENT --- //
+const MobileRecharge: React.FC<{ onNewTransaction: (transaction: Transaction) => void }> = ({ onNewTransaction }) => {
+    const [phone, setPhone] = useState('');
+    const [operator, setOperator] = useState('Jio');
+    const [amount, setAmount] = useState('');
+    const [feedback, setFeedback] = useState('');
+
+    const operatorUrls: { [key: string]: string } = {
+        'Jio': 'https://www.jio.com/selfcare/recharge/mobility/',
+        'Airtel': 'https://www.airtel.in/prepaid-recharge/',
+        'Vodafone Idea': 'https://www.myvi.in/prepaid-recharge-online',
+        'BSNL': 'https://portal2.bsnl.in/myportal/quickrecharge.do',
+    };
+
+    const handleOperatorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newOperator = e.target.value;
+        setOperator(newOperator);
+
+        if (phone.trim().length === 10) {
+            const url = operatorUrls[newOperator];
+            if (url) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!phone || !amount || phone.length < 10) {
+            setFeedback('Please enter a valid 10-digit number and amount.');
+            setTimeout(() => setFeedback(''), 3000);
+            return;
+        }
+
+        const url = operatorUrls[operator];
+        if (url) {
+            // Open the operator's website to complete the payment
+            window.open(url, '_blank', 'noopener,noreferrer');
+
+            // Log the transaction as pending
+            const newTransaction: Transaction = {
+                id: new Date().toISOString(),
+                type: 'Mobile Recharge',
+                description: `Recharge for ${phone} (${operator})`,
+                amount: parseFloat(amount),
+                date: new Date().toISOString(),
+                status: 'Pending',
+            };
+            onNewTransaction(newTransaction);
+            setFeedback('Redirecting to complete payment. Transaction logged as pending.');
+            
+            // Reset form
+            setPhone('');
+            setAmount('');
+            setTimeout(() => setFeedback(''), 5000);
+        } else {
+             setFeedback('Could not find a recharge link for the selected operator.');
+             setTimeout(() => setFeedback(''), 3000);
+        }
+    };
+    
+    const quickAmounts = [199, 299, 499, 666];
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4 flex items-center">
+                <MobileRechargeIcon /> <span className="ml-2">Mobile Recharge</span>
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Number</label>
+                        <input type="tel" id="phone" value={phone} onChange={e => setPhone(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600" maxLength={10} />
+                    </div>
+                     <div>
+                        <label htmlFor="operator" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Operator</label>
+                        <select id="operator" value={operator} onChange={handleOperatorChange} className="mt-1 w-full pl-3 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600">
+                            <option>Jio</option>
+                            <option>Airtel</option>
+                            <option>Vodafone Idea</option>
+                            <option>BSNL</option>
+                        </select>
+                        {phone.trim().length === 10 && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Select an operator to go to their site.</p>}
+                    </div>
+                </div>
+                <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount (₹)</label>
+                     <div className="grid grid-cols-4 gap-2 mt-1">
+                        {quickAmounts.map(amt => (
+                            <button type="button" key={amt} onClick={() => setAmount(String(amt))} className={`p-2 border rounded-md transition-colors ${amount === String(amt) ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>₹{amt}</button>
+                        ))}
+                     </div>
+                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Or enter custom amount" className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600" min="10" />
+                </div>
+                <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Recharge Now</button>
+                {feedback && <p className="text-center text-sm text-green-600 dark:text-green-400 mt-2">{feedback}</p>}
+            </form>
+        </div>
+    );
+};
+
+// --- TRANSACTION HISTORY COMPONENT --- //
+const TransactionHistory: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
+    const getStatusChip = (status: Transaction['status']) => {
+        switch(status) {
+            case 'Completed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            case 'Pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        }
+    }
+
+    return (
+        <div className="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4 flex items-center">
+                <HistoryIcon /> <span className="ml-2">Transaction History</span>
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+                {transactions.length > 0 ? (
+                    [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(tx => (
+                        <div key={tx.id} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                            <div className="mr-3 text-orange-500">
+                                {tx.type === 'Mobile Recharge' ? <MobileRechargeIcon /> : tx.type === 'QR Payment' ? <QRIcon /> : <PaymentIcon />}
+                            </div>
+                            <div className="flex-grow">
+                                <p className="font-semibold text-gray-800 dark:text-white">{tx.description}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(tx.date).toLocaleString()}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-bold text-gray-900 dark:text-white">- ₹{tx.amount.toFixed(2)}</p>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusChip(tx.status)}`}>{tx.status}</span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">No transaction history yet.</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 const Utilities: React.FC = () => {
+  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
+
+  const handleNewTransaction = (transaction: Transaction) => {
+      setTransactions(prev => [...prev, transaction]);
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <style>{`
@@ -607,6 +1218,8 @@ const Utilities: React.FC = () => {
             border-color: #6B7280;
             color: #D1D5DB;
         }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
       `}</style>
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Travel Utilities</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -614,10 +1227,15 @@ const Utilities: React.FC = () => {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <PlaceFinder />
+        <QRScannerPayment onNewTransaction={handleNewTransaction} />
         <CurrencyConverter />
         <WeatherForecast />
         <Translator />
         <WorldClock />
+        <Payments onNewTransaction={handleNewTransaction} />
+        <MobileRecharge onNewTransaction={handleNewTransaction} />
+        <TransactionHistory transactions={transactions} />
       </div>
     </div>
   );

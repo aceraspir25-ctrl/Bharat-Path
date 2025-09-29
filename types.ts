@@ -27,11 +27,36 @@ export interface AIBookingSuggestion {
     rating: number;
 }
 
+export interface GroundingChunk {
+  web: {
+    uri: string;
+    title: string;
+  };
+}
+
 export interface AIResponse {
     story?: string;
     suggestions?: AIBookingSuggestion[];
     image?: string;
+    groundingChunks?: GroundingChunk[];
 }
+
+export interface PlaceInfo {
+  history: string;
+  attractions: {
+    name: string;
+    description: string;
+  }[];
+  customs: string;
+}
+
+export interface RouteStep {
+  instruction: string;
+  distance: string;
+  duration: string;
+}
+
+export type RouteDetails = RouteStep[];
 
 export interface Post {
   id: string;
@@ -46,6 +71,15 @@ export interface OfflineMap {
   id: string;
   name: string;
   imageData: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: 'Bill Payment' | 'Mobile Recharge' | 'QR Payment';
+  description: string;
+  amount: number;
+  date: string;
+  status: 'Completed' | 'Pending' | 'Failed';
 }
 
 
@@ -71,5 +105,27 @@ declare global {
                 };
             };
         };
+    }
+    
+    // Ambient types for the Barcode Detection API
+    interface BarcodeDetectorOptions {
+        formats: string[];
+    }
+
+    interface DetectedBarcode {
+        boundingBox: DOMRectReadOnly;
+        rawValue: string;
+        format: string;
+        cornerPoints: { x: number; y: number }[];
+    }
+
+    const BarcodeDetector: {
+        prototype: BarcodeDetector;
+        new(options?: BarcodeDetectorOptions): BarcodeDetector;
+        getSupportedFormats(): Promise<string[]>;
+    };
+
+    interface BarcodeDetector {
+        detect(image: ImageBitmapSource): Promise<DetectedBarcode[]>;
     }
 }

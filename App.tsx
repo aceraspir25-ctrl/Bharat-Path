@@ -3,20 +3,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import HomePage from './components/HomePage';
 import MainApp from './components/MainApp';
 import AuthPage from './components/AuthPage';
+import WelcomePage from './components/WelcomePage';
 import { SearchProvider } from './contexts/SearchContext';
 
 type Theme = 'light' | 'dark';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'home' | 'auth' | 'app'>(() => {
-    try {
-      const isLoggedIn = window.localStorage.getItem('isLoggedIn');
-      return isLoggedIn === 'true' ? 'app' : 'home';
-    } catch (error) {
-      console.error("Could not access localStorage:", error);
-      return 'home';
-    }
-  });
+  const [appState, setAppState] = useState<'welcome' | 'home' | 'auth' | 'app'>('welcome');
   
   const [theme, setTheme] = useState<Theme>(() => {
     try {
@@ -29,6 +22,22 @@ const App: React.FC = () => {
       return 'light';
     }
   });
+
+  useEffect(() => {
+    if (appState === 'welcome') {
+      const timer = setTimeout(() => {
+        try {
+          const isLoggedIn = window.localStorage.getItem('isLoggedIn');
+          setAppState(isLoggedIn === 'true' ? 'app' : 'home');
+        } catch (error) {
+          console.error("Could not access localStorage:", error);
+          setAppState('home');
+        }
+      }, 3000); // 3-second welcome screen
+
+      return () => clearTimeout(timer);
+    }
+  }, [appState]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -47,24 +56,26 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = useCallback(() => {
     localStorage.setItem('isLoggedIn', 'true');
-    setView('app');
+    setAppState('app');
   }, []);
   
   const handleShowAuth = useCallback(() => {
-      setView('auth');
+      setAppState('auth');
   }, []);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('isLoggedIn');
-    setView('home');
+    setAppState('home');
   }, []);
   
   const handleBackToHome = useCallback(() => {
-      setView('home');
+      setAppState('home');
   }, []);
 
   const renderContent = () => {
-    switch(view) {
+    switch(appState) {
+        case 'welcome':
+            return <WelcomePage />;
         case 'home':
             return <HomePage onLogin={handleLoginSuccess} onShowAuth={handleShowAuth} />;
         case 'auth':

@@ -46,6 +46,11 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
             recognition.onresult = (event: any) => {
                 const transcript = event.results[0][0].transcript;
                 setSearchQuery(transcript);
+                // Automatically trigger search on successful voice input
+                if (transcript.trim()) {
+                    performSearch(transcript);
+                    setActiveView(View.Dashboard);
+                }
             };
 
             recognitionRef.current = recognition;
@@ -56,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                 recognitionRef.current.abort();
             }
         };
-    }, [setSearchQuery]);
+    }, [setSearchQuery, performSearch, setActiveView]);
 
     const handleVoiceInput = () => {
         if (!recognitionRef.current) {
