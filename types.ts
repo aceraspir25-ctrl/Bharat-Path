@@ -3,12 +3,21 @@ export enum View {
   Map = 'Map',
   Booking = 'Booking',
   Itinerary = 'Itinerary',
+  Budget = 'Budget',
   Utilities = 'Utilities',
   Safety = 'Safety',
   Community = 'Community',
   TravelTips = 'TravelTips',
   TimePass = 'TimePass',
   AppDetail = 'AppDetail',
+}
+
+export interface Expense {
+  id: string;
+  category: 'Flights' | 'Accommodation' | 'Food' | 'Activities' | 'Other';
+  description: string;
+  amount: number;
+  date: string;
 }
 
 export interface Booking {
@@ -80,6 +89,16 @@ export interface Transaction {
   amount: number;
   date: string;
   status: 'Completed' | 'Pending' | 'Failed';
+}
+
+export interface AIActivitySuggestion {
+  name: string;
+  description: string;
+}
+
+export interface TripDetails {
+  startDate: string;
+  endDate: string;
 }
 
 

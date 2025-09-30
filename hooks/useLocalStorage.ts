@@ -1,8 +1,6 @@
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
-// FIX: Import `React` to make its namespace available for type annotations.
-import React, { useState, useEffect } from 'react';
-
-function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
@@ -36,7 +34,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return [storedValue, setValue as React.Dispatch<React.SetStateAction<T>>];
+  return [storedValue, setValue as Dispatch<SetStateAction<T>>];
 }
 
 export default useLocalStorage;

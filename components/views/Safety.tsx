@@ -20,7 +20,6 @@ const PartnerLocatorCard: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState<string>('');
     const [feedback, setFeedback] = useState('');
     const watchId = useRef<number | null>(null);
-    // Fix: Use ReturnType<typeof setInterval> for browser compatibility instead of NodeJS.Timeout
     const timerId = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Effect to manage the countdown timer

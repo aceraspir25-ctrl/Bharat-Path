@@ -1,5 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { AIResponse, AIBookingSuggestion, PlaceInfo, RouteDetails, GroundingChunk } from '../types';
+import { AIResponse, AIBookingSuggestion, PlaceInfo, RouteDetails, GroundingChunk, Booking, AIActivitySuggestion } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -131,93 +131,6 @@ export const generateImage = async (prompt: string): Promise<string> => {
     console.error("Error generating image:", error);
     throw new Error("Failed to generate an image. The API key might be missing or invalid.");
   }
-};
-
-const flightSchema = {
-    type: Type.OBJECT,
-    properties: {
-        number: { type: Type.STRING, description: "The flight number, e.g., '6E-204'. Return an empty string if not found." },
-        departureAirport: { type: Type.STRING, description: "The departure airport IATA code. Infer this from a city name if provided (e.g., 'Delhi' becomes 'DEL'). Return an empty string if not found." },
-        arrivalAirport: { type: Type.STRING, description: "The arrival airport IATA code. Infer this from a city name if provided (e.g., 'Mumbai' becomes 'BOM'). Return an empty string if not found." },
-        date: { type: Type.STRING, description: "The date of the flight in YYYY-MM-DD format. Resolve relative and ambiguous dates like 'tomorrow' or 'next Friday' based on the current date. Return an empty string if not found." }
-    },
-    required: ["number", "departureAirport", "arrivalAirport", "date"]
-};
-
-const trainSchema = {
-    type: Type.OBJECT,
-    properties: {
-        number: { type: Type.STRING, description: "The train number or name, e.g., '12001 Shatabdi'. Return an empty string if not found." },
-        departureStation: { type: Type.STRING, description: "The departure station code. Infer this from a city name if provided (e.g., 'New Delhi' becomes 'NDLS'). Return an empty string if not found." },
-        arrivalStation: { type: Type.STRING, description: "The arrival station code. Infer this from a city name if provided (e.g., 'Mumbai Central' becomes 'BCT'). Return an empty string if not found." },
-        date: { type: Type.STRING, description: "The date of the journey in YYYY-MM-DD format. Resolve relative and ambiguous dates like 'tomorrow' or 'next Friday' based on the current date. Return an empty string if not found." }
-    },
-    required: ["number", "departureStation", "arrivalStation", "date"]
-};
-
-export const parseTravelDetails = async (query: string, type: 'Flight' | 'Train'): Promise<any> => {
-    try {
-        const systemInstruction = `You are an expert travel detail parser. Your task is to extract flight or train information from a user's query and return it in the specified JSON format.
-Key responsibilities:
-1.  **Date Resolution:** Accurately convert relative and ambiguous dates (e.g., 'today', 'tomorrow', 'next Friday', 'August 15th') into a precise 'YYYY-MM-DD' format based on the provided current date.
-2.  **Location Inference:** If a city name is given for departure or arrival (e.g., 'Delhi', 'Mumbai'), infer the most common corresponding IATA airport code for flights (e.g., 'DEL', 'BOM') or railway station code for trains (e.g., 'NDLS', 'BCT'). If a code is already provided, use it directly.
-3.  **Data Integrity:** If a specific piece of information (like a flight number or date) cannot be reliably determined from the query, return an empty string for that field.`;
-
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Parse the following travel information. The current date is ${new Date().toISOString().split('T')[0]}. Query: "${query}"`,
-            config: {
-                systemInstruction,
-                responseMimeType: "application/json",
-                responseSchema: type === 'Flight' ? flightSchema : trainSchema
-            },
-        });
-
-        const jsonText = response.text.trim();
-        return JSON.parse(jsonText);
-
-    } catch (error) {
-        console.error(`Error parsing ${type} details:`, error);
-        throw new Error(`Failed to parse ${type} details. Please check the format or fill the form manually.`);
-    }
-}
-
-const dateSchema = {
-    type: Type.OBJECT,
-    properties: {
-        date: {
-            type: Type.STRING,
-            description: "The parsed date in YYYY-MM-DD format. Resolve relative and ambiguous dates like 'tomorrow' or 'next Friday' based on the current date. Return an empty string if not found."
-        }
-    },
-    required: ["date"]
-};
-
-export const parseDate = async (dateQuery: string): Promise<string> => {
-    if (!dateQuery.trim()) {
-        return '';
-    }
-    try {
-        const systemInstruction = `You are an expert date parser. Your task is to extract a date from a user's query and return it in YYYY-MM-DD format. Accurately convert relative and ambiguous dates (e.g., 'today', 'tomorrow', 'next Friday', 'August 15th') into a precise 'YYYY-MM-DD' format based on the provided current date. If you cannot determine a date, return an empty string.`;
-
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Parse the following date. The current date is ${new Date().toISOString().split('T')[0]}. Date query: "${dateQuery}"`,
-            config: {
-                systemInstruction,
-                responseMimeType: "application/json",
-                responseSchema: dateSchema
-            },
-        });
-
-        const jsonText = response.text.trim();
-        const result = JSON.parse(jsonText);
-        return result.date || '';
-
-    } catch (error) {
-        console.error(`Error parsing date:`, error);
-        throw new Error(`Failed to parse date. Please use the YYYY-MM-DD format or try again.`);
-    }
 };
 
 const hotelSuggestionSchema = {
@@ -362,4 +275,58 @@ export const getRouteDetails = async (start: { lat: number; lon: number }, desti
     console.error("Error fetching route details:", error);
     throw new Error("Failed to get route details from the AI.");
   }
+};
+
+const itinerarySuggestionSchema = {
+    type: Type.ARRAY,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            name: {
+                type: Type.STRING,
+                description: "The name of the suggested activity or point of interest."
+            },
+            description: {
+                type: Type.STRING,
+                description: "A brief, one-sentence description of the suggestion."
+            }
+        },
+        required: ["name", "description"]
+    }
+};
+
+export const getItinerarySuggestions = async (bookings: Booking[]): Promise<AIActivitySuggestion[]> => {
+    try {
+        const model = 'gemini-2.5-flash';
+        const systemInstruction = `You are a helpful travel assistant specializing in India. Based on the user's itinerary, suggest relevant and interesting local activities, sights, or restaurants. Do not suggest new flights or hotels. Provide the response in the specified JSON format.`;
+        
+        const bookingSummary = bookings.map(b => `${b.type} for '${b.details}' on ${b.date}`).join('; ');
+
+        if (!bookingSummary) {
+            return [];
+        }
+
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model,
+            contents: `My itinerary is: ${bookingSummary}. Please suggest 3 to 4 nearby activities or points of interest I might enjoy.`,
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: itinerarySuggestionSchema
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const suggestions = JSON.parse(jsonText);
+
+        if (!Array.isArray(suggestions)) {
+            throw new Error("AI returned an invalid suggestion format.");
+        }
+
+        return suggestions;
+
+    } catch (error) {
+        console.error("Error fetching itinerary suggestions:", error);
+        throw new Error("Failed to get itinerary suggestions from the AI.");
+    }
 };

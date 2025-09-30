@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { View } from '../types';
-import { MapIcon, BookingIcon, ItineraryIcon, UtilitiesIcon, SafetyIcon, CommunityIcon, DashboardIcon, LogoutIcon, AppDetailIcon, TravelTipsIcon, TimePassIcon } from './icons/Icons';
+import { useLanguage } from '../contexts/LanguageContext';
+import { MapIcon, BookingIcon, ItineraryIcon, UtilitiesIcon, SafetyIcon, CommunityIcon, DashboardIcon, LogoutIcon, AppDetailIcon, TravelTipsIcon, TimePassIcon, BudgetIcon } from './icons/Icons';
 
 interface SidebarProps {
   activeView: View;
@@ -42,17 +44,20 @@ const AppLogo: React.FC = () => (
 
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onLogout, isOpen, setIsOpen }) => {
+  const { t } = useLanguage();
+
   const navItems = [
-    { id: View.Dashboard, label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: View.Map, label: 'Map', icon: <MapIcon /> },
-    { id: View.Booking, label: 'Booking', icon: <BookingIcon /> },
-    { id: View.Itinerary, label: 'Itinerary', icon: <ItineraryIcon /> },
-    { id: View.Utilities, label: 'Utilities', icon: <UtilitiesIcon /> },
-    { id: View.Safety, label: 'Safety', icon: <SafetyIcon /> },
-    { id: View.Community, label: 'Community', icon: <CommunityIcon /> },
-    { id: View.TravelTips, label: 'Travel Tips', icon: <TravelTipsIcon /> },
-    { id: View.TimePass, label: 'TimePass', icon: <TimePassIcon /> },
-    { id: View.AppDetail, label: 'App Details', icon: <AppDetailIcon /> },
+    { id: View.Dashboard, label: t('dashboard'), icon: <DashboardIcon /> },
+    { id: View.Itinerary, label: t('itinerary'), icon: <ItineraryIcon /> },
+    { id: View.Budget, label: t('budget'), icon: <BudgetIcon /> },
+    { id: View.Booking, label: t('booking'), icon: <BookingIcon /> },
+    { id: View.Map, label: t('map'), icon: <MapIcon /> },
+    { id: View.Utilities, label: t('utilities'), icon: <UtilitiesIcon /> },
+    { id: View.Community, label: t('community'), icon: <CommunityIcon /> },
+    { id: View.TravelTips, label: t('travelTips'), icon: <TravelTipsIcon /> },
+    { id: View.TimePass, label: t('timePass'), icon: <TimePassIcon /> },
+    { id: View.Safety, label: t('safety'), icon: <SafetyIcon /> },
+    { id: View.AppDetail, label: t('appDetails'), icon: <AppDetailIcon /> },
   ];
 
   const handleItemClick = (view: View) => {
@@ -79,7 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onLogout, 
         <div>
           <NavItem
             icon={<LogoutIcon />}
-            label="Logout"
+            label={t('logout')}
             isActive={false}
             onClick={onLogout}
           />

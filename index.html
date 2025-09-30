@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bharat Path: Your AI Travel Guide</title>
     <script>
+      // Immediately set the theme on page load to prevent flicker
+      (function() {
+        try {
+          const theme = localStorage.getItem('theme');
+          if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <script>
       tailwind.config = {
         darkMode: 'class',
       }

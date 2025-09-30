@@ -1,7 +1,8 @@
+
 import React from 'react';
 
-const Icon: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+const Icon: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     {children}
   </svg>
 );
@@ -20,6 +21,10 @@ export const BookingIcon: React.FC = () => (
 
 export const ItineraryIcon: React.FC = () => (
     <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></Icon>
+);
+
+export const BudgetIcon: React.FC = () => (
+    <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01M12 18V7m0 11a4 4 0 00-4-4m4 4a4 4 0 01-4-4m4 4v3m-4-3H8m4 0h4m-4-8a9 9 0 11-18 0 9 9 0 0118 0z"></path></Icon>
 );
 
 export const UtilitiesIcon: React.FC = () => (
@@ -68,12 +73,18 @@ export const SearchIcon: React.FC = () => (
   </svg>
 );
 
-export const MoonIcon: React.FC = () => (
-    <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></Icon>
+export const GlobeIcon: React.FC = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9V3m0 18a9 9 0 009-9M3 12a9 9 0 019-9m-9 9h18" />
+    </svg>
 );
 
-export const SunIcon: React.FC = () => (
-    <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></Icon>
+export const MoonIcon: React.FC<{className?: string}> = ({className}) => (
+    <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></Icon>
+);
+
+export const SunIcon: React.FC<{className?: string}> = ({className}) => (
+    <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></Icon>
 );
 
 export const MicrophoneIcon: React.FC = () => (
@@ -162,4 +173,19 @@ export const HistoryIcon: React.FC = () => (
     <Icon>
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </Icon>
+);
+
+export const MicrosoftIcon: React.FC = () => (
+    <svg className="w-5 h-5" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#f25022" d="M1 1h9v9H1z" />
+        <path fill="#00a4ef" d="M1 11h9v9H1z" />
+        <path fill="#7fba00" d="M11 1h9v9h-9z" />
+        <path fill="#ffb900" d="M11 11h9v9h-9z" />
+    </svg>
+);
+
+export const FacebookIcon: React.FC = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.675 0h-21.35C.59 0 0 .59 0 1.325v21.35C0 23.41.59 24 1.325 24H12.82v-9.29h-3.128V11.11h3.128V8.62c0-3.1 1.893-4.788 4.658-4.788 1.325 0 2.463.099 2.795.143v3.24h-1.918c-1.504 0-1.795.715-1.795 1.763v2.31h3.587l-.467 3.6h-3.12V24h5.713C23.41 24 24 23.41 24 22.675V1.325C24 .59 23.41 0 22.675 0z" />
+    </svg>
 );

@@ -13,6 +13,7 @@ import Community from './views/Community';
 import AppDetail from './views/AppDetail';
 import TravelTips from './views/TravelTips';
 import TimePass from './views/TimePass';
+import Budget from './views/Budget';
 
 interface MainAppProps {
   onLogout: () => void;
@@ -34,6 +35,8 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
         return <Booking />;
       case View.Itinerary:
         return <Itinerary />;
+      case View.Budget:
+        return <Budget />;
       case View.Utilities:
         return <Utilities />;
       case View.Safety:

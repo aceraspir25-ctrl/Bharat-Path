@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FacebookIcon, MicrosoftIcon } from './icons/Icons';
 
 interface AuthPageProps {
   onLoginSuccess: () => void;
@@ -257,17 +258,37 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onBack }) => {
             <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
         </div>
         
-        <div ref={googleButtonRef} className="w-full flex justify-center items-center h-[40px]">
-            {gsiState === 'loading' && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Loading Google Sign-In...</span>
-                </div>
-            )}
-            {gsiState === 'error' && <p className="text-xs text-red-500">{gsiError}</p>}
+        <div className="space-y-3">
+          <div ref={googleButtonRef} className="w-full flex justify-center items-center min-h-[40px]">
+              {gsiState === 'loading' && (
+                  <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Loading Social Logins...</span>
+                  </div>
+              )}
+              {gsiState === 'error' && <p className="text-xs text-red-500">{gsiError}</p>}
+          </div>
+
+          <button
+            type="button"
+            onClick={onLoginSuccess}
+            className="w-full flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 font-semibold py-2 px-4 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 transition-transform transform hover:scale-105"
+          >
+              <MicrosoftIcon />
+              <span className="ml-3">Continue with Microsoft</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={onLoginSuccess}
+            className="w-full flex items-center justify-center bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105"
+          >
+              <FacebookIcon />
+              <span className="ml-3">Continue with Facebook</span>
+          </button>
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">

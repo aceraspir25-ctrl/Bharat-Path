@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearch } from '../../contexts/SearchContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { AIBookingSuggestion, GroundingChunk } from '../../types';
 import { ExternalLinkIcon } from '../icons/Icons';
 
@@ -47,6 +49,7 @@ const SearchSuggestion: React.FC<{ title: string, subtitle: string, onClick: () 
 
 const WelcomeScreen: React.FC = () => {
     const { setSearchQuery, performSearch } = useSearch();
+    const { t } = useLanguage();
 
     const handleSuggestionClick = (query: string) => {
         setSearchQuery(query);
@@ -56,31 +59,31 @@ const WelcomeScreen: React.FC = () => {
     return (
         <div className="text-center max-w-3xl mx-auto py-16">
             <h1 className="text-4xl font-extrabold text-gray-800 dark:text-white">
-                Discover India with <span className="bg-gradient-to-r from-orange-500 via-red-500 to-green-500 bg-clip-text text-transparent">Path Darshak</span>
+                {t('discoverIndia')} <span className="bg-gradient-to-r from-orange-500 via-red-500 to-green-500 bg-clip-text text-transparent">Path Darshak</span>
             </h1>
             <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
-                Your AI travel companion. Ask me anything about your journey through India.
+                {t('aiCompanion')}
             </p>
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SearchSuggestion
-                    title="Uncover History"
-                    subtitle="of the ancient city of Hampi"
-                    onClick={() => handleSuggestionClick("Tell me the history of Hampi")}
+                    title={t('uncoverHistory')}
+                    subtitle={t('uncoverHistorySub')}
+                    onClick={() => handleSuggestionClick(t('uncoverHistoryQuery'))}
                 />
                 <SearchSuggestion
-                    title="Find Local Cuisine"
-                    subtitle="in Mumbai"
-                    onClick={() => handleSuggestionClick("Suggest some famous local food spots in Mumbai")}
+                    title={t('findCuisine')}
+                    subtitle={t('findCuisineSub')}
+                    onClick={() => handleSuggestionClick(t('findCuisineQuery'))}
                 />
                 <SearchSuggestion
-                    title="Generate an Image"
-                    subtitle="of the serene Kerala backwaters"
-                    onClick={() => handleSuggestionClick("Generate an image of the serene Kerala backwaters")}
+                    title={t('generateImage')}
+                    subtitle={t('generateImageSub')}
+                    onClick={() => handleSuggestionClick(t('generateImageQuery'))}
                 />
                 <SearchSuggestion
-                    title="Plan an Adventure"
-                    subtitle="trekking in Himachal Pradesh"
-                    onClick={() => handleSuggestionClick("Suggest beginner-friendly trekking routes in Himachal Pradesh")}
+                    title={t('planAdventure')}
+                    subtitle={t('planAdventureSub')}
+                    onClick={() => handleSuggestionClick(t('planAdventureQuery'))}
                 />
             </div>
         </div>

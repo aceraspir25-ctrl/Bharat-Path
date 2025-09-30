@@ -1,8 +1,9 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
-import { Booking } from '../../types';
+import { Booking, AIActivitySuggestion, TripDetails } from '../../types';
 import { ItineraryIcon, BellIcon, BellIconSolid } from '../icons/Icons';
+import { getItinerarySuggestions } from '../../services/geminiService';
 
 interface ItineraryItemProps {
     booking: Booking;
@@ -28,7 +29,7 @@ const ItineraryItem: React.FC<ItineraryItemProps> = ({ booking, onRemove, onTogg
             <div className="flex justify-between items-center">
                 <h3 className="font-bold text-lg text-gray-800 dark:text-white">{booking.type}</h3>
                 <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                    {new Date(booking.date).toLocaleDateString()}
+                    {new Date(booking.date + 'T00:00:00').toLocaleDateString(undefined, { timeZone: 'UTC' })}
                     {booking.type === 'Flight' && booking.time && ` at ${booking.time}`}
                 </span>
             </div>
@@ -50,6 +51,170 @@ const ItineraryItem: React.FC<ItineraryItemProps> = ({ booking, onRemove, onTogg
   )
 }
 
+const SuggestionCard: React.FC<{
+    suggestion: AIActivitySuggestion;
+    onAdd: (suggestion: AIActivitySuggestion) => void;
+}> = ({ suggestion, onAdd }) => (
+    <div className="bg-orange-50 dark:bg-gray-700/50 p-4 rounded-lg border border-orange-200 dark:border-gray-600 flex items-center justify-between gap-4">
+        <div className="flex-1">
+            <h4 className="font-bold text-gray-800 dark:text-white">{suggestion.name}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{suggestion.description}</p>
+        </div>
+        <button
+            onClick={() => onAdd(suggestion)}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors text-sm flex-shrink-0"
+        >
+            + Add
+        </button>
+    </div>
+);
+
+const AISuggestions: React.FC<{ 
+    bookings: Booking[]; 
+    onAddSuggestion: (booking: Booking) => void; 
+}> = ({ bookings, onAddSuggestion }) => {
+    const [suggestions, setSuggestions] = useState<AIActivitySuggestion[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleFetchSuggestions = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await getItinerarySuggestions(bookings);
+            setSuggestions(result);
+        } catch (err: any) {
+            setError(err.message || "Could not fetch suggestions.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddSuggestion = (suggestion: AIActivitySuggestion) => {
+        const firstBookingDate = bookings.length > 0 
+            ? bookings[0].date // bookings are pre-sorted in parent
+            : new Date().toISOString().split('T')[0];
+
+        const newBooking: Booking = {
+            id: new Date().toISOString() + Math.random(),
+            type: 'Activity',
+            details: `${suggestion.name} - AI Suggestion`,
+            date: firstBookingDate,
+            reminderSet: false
+        };
+        onAddSuggestion(newBooking);
+        // Remove the added suggestion from the list
+        setSuggestions(prev => prev.filter(s => s.name !== suggestion.name));
+    };
+
+    if (bookings.length === 0) {
+        return null; // Don't show if no bookings
+    }
+
+    return (
+        <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                ✨ AI-Powered Suggestions
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Based on your itinerary, here are a few things you might enjoy.
+            </p>
+
+            {suggestions.length === 0 && !isLoading && !error && (
+                <button
+                    onClick={handleFetchSuggestions}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors"
+                >
+                    Find things to do
+                </button>
+            )}
+
+            {isLoading && (
+                <div className="flex justify-center items-center py-4">
+                    <svg className="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="ml-3 text-gray-600 dark:text-gray-400">Thinking...</span>
+                </div>
+            )}
+            
+            {error && <p className="text-red-500 dark:text-red-400 text-center">{error}</p>}
+
+            {suggestions.length > 0 && (
+                <div className="space-y-3">
+                    {suggestions.map((s, index) => (
+                        <SuggestionCard key={index} suggestion={s} onAdd={handleAddSuggestion} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const TripDurationManager: React.FC = () => {
+    const [tripDetails, setTripDetails] = useLocalStorage<TripDetails | null>('tripDetails', null);
+    const [startDate, setStartDate] = useState(tripDetails?.startDate || '');
+    const [endDate, setEndDate] = useState(tripDetails?.endDate || '');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+
+    const handleSave = () => {
+        setError('');
+        setSuccess('');
+        if (!startDate || !endDate) {
+            setError('Please select both a start and end date.');
+            return;
+        }
+        if (new Date(endDate) < new Date(startDate)) {
+            setError('End date cannot be before the start date.');
+            return;
+        }
+        setTripDetails({ startDate, endDate });
+        setSuccess('Trip duration saved successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Trip Duration</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="md:col-span-1">
+                    <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
+                    <input
+                        type="date"
+                        id="start-date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+                <div className="md:col-span-1">
+                    <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date</label>
+                    <input
+                        type="date"
+                        id="end-date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        min={startDate}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                </div>
+                <div className="md:col-span-1">
+                    <button
+                        onClick={handleSave}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+                    >
+                        Save Duration
+                    </button>
+                </div>
+            </div>
+            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            {success && <p className="text-sm text-green-500 mt-2">{success}</p>}
+        </div>
+    );
+};
+
 const Itinerary: React.FC = () => {
   const [bookings, setBookings] = useLocalStorage<Booking[]>('bookings', []);
 
@@ -61,6 +226,10 @@ const Itinerary: React.FC = () => {
     setBookings(bookings.map(b => 
       b.id === id ? { ...b, reminderSet: !b.reminderSet } : b
     ));
+  };
+
+  const handleAddSuggestionToItinerary = (newBooking: Booking) => {
+    setBookings(prev => [...prev, newBooking]);
   };
 
   useEffect(() => {
@@ -122,8 +291,10 @@ const Itinerary: React.FC = () => {
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Your Travel Itinerary</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-6">
-        Here's a timeline of your planned journey. All items are available offline. Click the bell to set a reminder for the day before.
+        Set your travel dates below. All your bookings will be organized within this duration.
       </p>
+
+      <TripDurationManager />
 
       {sortedBookings.length > 0 ? (
         <div className="space-y-4">
@@ -140,6 +311,8 @@ const Itinerary: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-2">Go to the 'Booking' section to add your first trip detail!</p>
         </div>
       )}
+
+      <AISuggestions bookings={sortedBookings} onAddSuggestion={handleAddSuggestionToItinerary} />
     </div>
   );
 };

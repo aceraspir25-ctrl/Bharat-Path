@@ -5,6 +5,7 @@ import MainApp from './components/MainApp';
 import AuthPage from './components/AuthPage';
 import WelcomePage from './components/WelcomePage';
 import { SearchProvider } from './contexts/SearchContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 type Theme = 'light' | 'dark';
 
@@ -82,9 +83,11 @@ const App: React.FC = () => {
             return <AuthPage onLoginSuccess={handleLoginSuccess} onBack={handleBackToHome} />;
         case 'app':
             return (
-              <SearchProvider>
-                <MainApp onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
-              </SearchProvider>
+              <LanguageProvider>
+                <SearchProvider>
+                  <MainApp onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
+                </SearchProvider>
+              </LanguageProvider>
             );
         default:
             return <HomePage onLogin={handleLoginSuccess} onShowAuth={handleShowAuth} />;
