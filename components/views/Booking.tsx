@@ -1,13 +1,18 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
 import { Booking as BookingType, AIBookingSuggestion, TripDetails } from '../../types';
 import { getHotelSuggestions } from '../../services/geminiService';
 import { ExternalLinkIcon, TrainIconSimple, IrctcPartnerIcon, PnrIcon, LiveTrainIcon, TrainScheduleIcon, CoachPositionIcon, OrderFoodIcon, RailMadadIcon, AadhaarIcon } from '../icons/Icons';
+// Added useUser import
+import { useUser } from '../../contexts/UserContext';
 
 const Booking: React.FC = () => {
   const [bookings, setBookings] = useLocalStorage<BookingType[]>('bookings', []);
   const [type, setType] = useState<'Hotel' | 'Flight' | 'Train' | 'Activity'>('Hotel');
   const [tripDetails] = useLocalStorage<TripDetails | null>('tripDetails', null);
+  // Added profile from useUser context
+  const { profile } = useUser();
   
   // Hotel State
   const [hotelName, setHotelName] = useState('');
@@ -49,7 +54,8 @@ const Booking: React.FC = () => {
         setIsFetchingHotels(true);
         setHotelFetchError('');
         try {
-            const suggestions = await getHotelSuggestions(loc);
+            // Fixed: Pass profile to getHotelSuggestions
+            const suggestions = await getHotelSuggestions(loc, profile);
             setHotelSuggestions(suggestions);
             setShowSuggestions(suggestions.length > 0);
         } catch (error: any) {
@@ -72,7 +78,8 @@ const Booking: React.FC = () => {
         setHotelSuggestions([]);
         setShowSuggestions(false);
     }
-  }, [location, type]);
+    // Added profile to dependencies
+  }, [location, type, profile]);
 
   // Effect to handle clicks outside the suggestion box
   useEffect(() => {
@@ -388,12 +395,12 @@ const Booking: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="departureStation" className="label-style">From Station</label>
-                            <input type="text" id="departureStation" value={departureStation} onChange={e => setDepartureStation(e.target.value)} placeholder="e.g., NDLS" className="input-field" />
+                            <label htmlFor="departureStation" className="label-style">Departure Station</label>
+                            <input type="text" id="departureStation" value={departureStation} onChange={e => setDepartureStation(e.target.value.toUpperCase())} placeholder="e.g., NDLS" className="input-field" />
                         </div>
                         <div>
-                            <label htmlFor="arrivalStation" className="label-style">To Station</label>
-                            <input type="text" id="arrivalStation" value={arrivalStation} onChange={e => setArrivalStation(e.target.value)} placeholder="e.g., BCT" className="input-field" />
+                            <label htmlFor="arrivalStation" className="label-style">Arrival Station</label>
+                            <input type="text" id="arrivalStation" value={arrivalStation} onChange={e => setArrivalStation(e.target.value.toUpperCase())} placeholder="e.g., BCT" className="input-field" />
                         </div>
                     </div>
                 </div>

@@ -1,13 +1,19 @@
+
 import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
 import { getAIResponse } from '../services/geminiService';
 import { AIResponse } from '../types';
+// Added useUser import
+import { useUser } from './UserContext';
 
 interface SearchContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   searchResults: AIResponse | null;
+  setSearchResults: (results: AIResponse | null) => void;
   loading: boolean;
+  setLoading: (loading: boolean) => void;
   error: string | null;
+  setError: (error: string | null) => void;
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
 }
@@ -19,6 +25,8 @@ export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [searchResults, setSearchResults] = useState<AIResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Added profile from context
+  const { profile } = useUser();
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -35,21 +43,26 @@ export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setSearchResults(null);
 
     try {
-      const response = await getAIResponse(query);
+      // Fixed: Pass profile to getAIResponse
+      const response = await getAIResponse(query, profile);
       setSearchResults(response);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred during the search.");
     } finally {
       setLoading(false);
     }
-  }, []);
+    // Added profile to dependencies
+  }, [profile]);
 
   const value = {
     searchQuery,
     setSearchQuery,
     searchResults,
+    setSearchResults,
     loading,
+    setLoading,
     error,
+    setError,
     performSearch,
     clearSearch
   };

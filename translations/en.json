@@ -2,7 +2,10 @@
 {
   "dashboard": "Dashboard",
   "map": "Map",
-  "booking": "Booking",
+  "booking": "Hotels & Stays",
+  "flights": "Flights",
+  "trains": "Trains",
+  "routePlanner": "AI Route Planner",
   "itinerary": "Itinerary",
   "budget": "Budget",
   "utilities": "Utilities",

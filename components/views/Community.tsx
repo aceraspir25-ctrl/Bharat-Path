@@ -1,333 +1,266 @@
-import React, { useState, useRef, useEffect } from 'react';
-import useLocalStorage from '../../hooks/useLocalStorage';
-import { Post } from '../../types';
-import { CommunityIcon } from '../icons/Icons';
 
-const DefaultProfileIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className || "w-full h-full text-gray-300 dark:text-gray-600"} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-    </svg>
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import useLocalStorage from '../../hooks/useLocalStorage';
+import { useUser } from '../../contexts/UserContext';
+import { Post, ChatRoom, ChatMessage } from '../../types';
+import { CommunityIcon, UsersIcon, GlobeIcon, CompassIcon } from '../icons/Icons';
+import { getChatTranslation } from '../../services/geminiService';
+import { useLanguage } from '../../contexts/LanguageContext';
+
+const TrustBadge: React.FC<{ type: string }> = ({ type }) => {
+    const styles = {
+        'Verified Traveler': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+        'Raipur Local Expert': 'bg-green-500/10 text-green-500 border-green-500/20',
+        'Path Pioneer': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+        'Group Member': 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+        'Trusted Contributor': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+    };
+    return (
+        <span className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border ${styles[type as keyof typeof styles] || styles['Group Member']}`}>
+            {type}
+        </span>
+    );
+};
+
+const CountryFlag: React.FC<{ code: string }> = ({ code }) => (
+    <span className="text-sm shadow-sm" title={code}>
+        {code === 'IN' ? '🇮🇳' : code === 'US' ? '🇺🇸' : code === 'JP' ? '🇯🇵' : code === 'GB' ? '🇬🇧' : '🌍'}
+    </span>
 );
 
+const CHAT_ROOMS: ChatRoom[] = [
+    { id: 'global', name: 'Global Wall', icon: '🌍', description: 'Universal travel broadcast for all explorers.' },
+    { id: 'cultural', name: 'Cultural Exchange', icon: '🏛️', description: 'Share traditions, history, and sacred paths.' },
+    { id: 'solo', name: 'Solo Travelers', icon: '🎒', description: 'Tips and meetups for the independent path.' },
+    { id: 'foodies', name: 'Local Foodies', icon: '🥘', description: 'The absolute best bites from around the world.' },
+];
 
-// --- USER PROFILE COMPONENT --- //
-interface UserProfileProps {
-    name: string;
-    setName: (name: string) => void;
-    profilePic: string | null;
-    setProfilePic: (pic: string | null) => void;
-}
-const UserProfile: React.FC<UserProfileProps> = ({ name, setName, profilePic, setProfilePic }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [tempName, setTempName] = useState(name);
+const Community: React.FC = () => {
+    const { language } = useLanguage();
+    const { profile, addExpertiseBadge } = useUser();
     
-    const [showCamera, setShowCamera] = useState(false);
-    const [showUploadOptions, setShowUploadOptions] = useState(false);
-    const [cameraError, setCameraError] = useState<string | null>(null);
+    const [activeRoomId, setActiveRoomId] = useState('global');
+    const [messages, setMessages] = useLocalStorage<ChatMessage[]>('communityMessages', []);
+    const [inputText, setInputText] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
     
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const streamRef = useRef<MediaStream | null>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
+    const filteredMessages = useMemo(() => 
+        messages.filter(m => m.roomId === activeRoomId).sort((a, b) => a.timestamp - b.timestamp),
+    [messages, activeRoomId]);
 
     useEffect(() => {
-        const startCamera = async () => {
-            if (showCamera) {
-                try {
-                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                        throw new Error("Camera not supported on this device.");
-                    }
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    streamRef.current = stream;
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                } catch (err) {
-                    console.error("Error accessing camera:", err);
-                    setCameraError("Could not access camera. Please check permissions.");
-                    setShowCamera(false);
-                }
-            }
-        };
-        startCamera();
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [filteredMessages]);
 
-        return () => { // Cleanup function
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, [showCamera]);
+    const handleSendMessage = async () => {
+        if (!inputText.trim()) return;
 
+        // SOCIAL TRUST ENGINE: Expertise Calculation
+        const myMessageCount = messages.filter(m => m.senderId === 'current-user').length;
+        if (myMessageCount === 2) addExpertiseBadge('Trusted Contributor');
+        if (myMessageCount === 5) addExpertiseBadge('Path Authority');
 
-    const handleSaveName = () => {
-        setName(tempName);
-        setIsEditing(false);
-    };
-
-    const handleTakePhoto = () => {
-        setShowUploadOptions(false);
-        setCameraError(null);
-        setShowCamera(true);
-    };
-
-    const handleUploadClick = () => {
-        setShowUploadOptions(false);
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfilePic(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleCapture = () => {
-        if (videoRef.current && canvasRef.current) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            if(context){
-                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                const dataUrl = canvas.toDataURL('image/jpeg');
-                setProfilePic(dataUrl);
-            }
-            setShowCamera(false);
-        }
-    };
-
-    return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-             {showCamera && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 p-4">
-                    <video ref={videoRef} autoPlay playsInline className="max-w-full max-h-[70vh] rounded-lg shadow-xl" />
-                    <div className="mt-4 flex space-x-4">
-                        <button onClick={handleCapture} className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600">Capture</button>
-                        <button onClick={() => setShowCamera(false)} className="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600">Cancel</button>
-                    </div>
-                    <canvas ref={canvasRef} className="hidden" />
-                </div>
-            )}
-             {showUploadOptions && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setShowUploadOptions(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-center mb-4 dark:text-white">Update Picture</h3>
-                        <div className="space-y-3">
-                            <button onClick={handleTakePhoto} className="w-full text-left flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                                <svg className="w-6 h-6 mr-3 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                <span className="dark:text-gray-200">Take Photo</span>
-                            </button>
-                            <button onClick={handleUploadClick} className="w-full text-left flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                               <svg className="w-6 h-6 mr-3 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                <span className="dark:text-gray-200">Upload from Gallery</span>
-                            </button>
-                        </div>
-                        <button onClick={() => setShowUploadOptions(false)} className="w-full mt-4 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-
-            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 mb-4">Your Traveler Profile</h3>
-            {cameraError && <p className="text-red-500 text-sm mb-4">{cameraError}</p>}
-            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                        {profilePic ? <img src={profilePic} alt="Profile" className="w-full h-full object-cover" /> : <DefaultProfileIcon />}
-                    </div>
-                    <button onClick={() => setShowUploadOptions(true)} className="absolute -bottom-1 -right-1 bg-orange-500 text-white p-1.5 rounded-full hover:bg-orange-600 shadow-md border-2 border-white dark:border-gray-800">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    </button>
-                </div>
-                <div className="flex-1 text-center sm:text-left">
-                    {isEditing ? (
-                        <input 
-                            type="text"
-                            value={tempName}
-                            onChange={(e) => setTempName(e.target.value)}
-                            className="text-2xl font-bold text-gray-800 dark:text-white bg-transparent border-b-2 border-orange-500 focus:outline-none"
-                        />
-                    ) : (
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{name}</h2>
-                    )}
-                    <div className="mt-2 flex items-center justify-center sm:justify-start space-x-4">
-                        {isEditing ? (
-                             <button onClick={handleSaveName} className="text-sm font-semibold text-green-500 hover:text-green-700 dark:hover:text-green-300">Save Name</button>
-                        ) : (
-                            <>
-                                <button onClick={() => { setIsEditing(true); setTempName(name); }} className="text-sm font-semibold text-orange-500 hover:text-orange-700 dark:hover:text-orange-300">Edit Name</button>
-                                <button onClick={handleTakePhoto} className="text-sm font-semibold text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">Take Picture</button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-// --- CREATE POST COMPONENT --- //
-interface CreatePostProps {
-    authorName: string;
-    authorPic: string | null;
-    onPost: (post: Post) => void;
-}
-const CreatePost: React.FC<CreatePostProps> = ({ authorName, authorPic, onPost }) => {
-    const [content, setContent] = useState('');
-    const [image, setImage] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSubmit = () => {
-        if (!content.trim()) return;
-
-        const newPost: Post = {
-            id: new Date().toISOString(),
-            authorName,
-            authorPic,
-            content,
-            image,
+        const newMessage: ChatMessage = {
+            id: Date.now().toString(),
+            roomId: activeRoomId,
+            senderId: 'current-user',
+            senderName: profile.name,
+            senderPic: profile.profilePic,
+            senderCountry: profile.country,
+            senderBadges: ['Verified Traveler', ...profile.memory.expertiseNodes],
+            text: inputText,
+            sourceLang: language,
             timestamp: Date.now()
         };
-        onPost(newPost);
-        setContent('');
-        setImage(null);
-        if(fileInputRef.current) fileInputRef.current.value = "";
+
+        setMessages(prev => [...prev, newMessage]);
+        setInputText('');
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-            <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
-                placeholder={`What's on your mind, ${authorName}?`}
-                rows={3}
-            />
-            {image && (
-                <div className="mt-2 relative">
-                    <img src={image} alt="Preview" className="max-h-48 rounded-lg" />
-                    <button onClick={() => setImage(null)} className="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full p-1 text-xs">
-                        &times;
-                    </button>
-                </div>
-            )}
-            <div className="flex justify-between items-center mt-2">
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="text-orange-500 hover:text-orange-700 dark:hover:text-orange-300 p-2 rounded-full">
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                </button>
-                <button onClick={handleSubmit} disabled={!content.trim()} className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 disabled:bg-orange-300">
-                    Post
-                </button>
-            </div>
-        </div>
-    );
-};
+    const handleTranslateMessage = async (msgId: string) => {
+        setIsTranslating(true);
+        const msgIndex = messages.findIndex(m => m.id === msgId);
+        if (msgIndex === -1) return;
 
-// --- POST FEED COMPONENT --- //
-interface PostItemProps {
-    post: Post;
-    onDelete: (id: string) => void;
-}
-const PostItem: React.FC<PostItemProps> = ({ post, onDelete }) => {
-    const timeAgo = (timestamp: number): string => {
-        const seconds = Math.floor((Date.now() - timestamp) / 1000);
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + "y ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + "mo ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + "d ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + "h ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + "m ago";
-        return Math.floor(seconds) + "s ago";
-    };
-
-    return (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start mb-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
-                    {post.authorPic ? <img src={post.authorPic} alt={post.authorName} className="w-full h-full object-cover" /> : <DefaultProfileIcon />}
-                </div>
-                <div className="ml-3 flex-1">
-                    <p className="font-bold text-gray-800 dark:text-white">{post.authorName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{timeAgo(post.timestamp)}</p>
-                </div>
-                 <button 
-                    onClick={() => onDelete(post.id)} 
-                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1 rounded-full"
-                    aria-label="Delete post"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </button>
-            </div>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{post.content}</p>
-            {post.image && (
-                <img src={post.image} alt="Post content" className="mt-3 rounded-lg w-full max-h-96 object-cover" />
-            )}
-        </div>
-    );
-};
-
-
-// --- MAIN COMMUNITY COMPONENT --- //
-const Community: React.FC = () => {
-    const [name, setName] = useLocalStorage('userProfileName', 'Wanderer');
-    const [profilePic, setProfilePic] = useLocalStorage<string | null>('userProfilePic', null);
-    const [posts, setPosts] = useLocalStorage<Post[]>('communityPosts', []);
-
-    const handleNewPost = (newPost: Post) => {
-        setPosts(prevPosts => [newPost, ...prevPosts]);
-    };
-
-    const handleDeletePost = (postId: string) => {
-        if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-            setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+        const msg = messages[msgIndex];
+        try {
+            const targetLangFull = language === 'hi' ? 'Hindi' : 'English';
+            const translation = await getChatTranslation(msg.text, targetLangFull);
+            
+            const updatedMessages = [...messages];
+            updatedMessages[msgIndex] = { ...msg, translatedText: translation };
+            setMessages(updatedMessages);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsTranslating(false);
         }
     };
 
-  return (
-    <div className="max-w-3xl mx-auto">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center p-4 bg-orange-100 dark:bg-orange-900/50 rounded-full mb-4">
-            <CommunityIcon />
+    return (
+        <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-8 animate-fadeIn">
+            {/* Topic Sidebar */}
+            <div className="w-full md:w-80 flex flex-col gap-6">
+                <div className="bg-white/80 dark:bg-[#1a1c2e]/90 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-white/5">
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-8 flex items-center gap-3">
+                        <UsersIcon className="text-orange-500" /> Topic Hubs
+                    </h2>
+                    <div className="space-y-3">
+                        {CHAT_ROOMS.map(room => (
+                            <button
+                                key={room.id}
+                                onClick={() => setActiveRoomId(room.id)}
+                                className={`w-full text-left p-5 rounded-[2rem] border-2 transition-all group relative overflow-hidden ${
+                                    activeRoomId === room.id 
+                                    ? 'border-orange-500 bg-orange-500 text-white shadow-xl shadow-orange-500/20' 
+                                    : 'border-transparent bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-gray-300 hover:border-orange-500/30'
+                                }`}
+                            >
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <span className="text-2xl">{room.icon}</span>
+                                    <div>
+                                        <p className="text-[11px] font-black uppercase tracking-widest">{room.name}</p>
+                                        <p className={`text-[8px] font-bold uppercase mt-1 opacity-60 line-clamp-1`}>{room.description}</p>
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1a1c2e] to-[#111222] p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden border border-white/5">
+                    <p className="text-[9px] font-black text-blue-400 uppercase tracking-[0.4em] mb-4">Registry Info</p>
+                    <div className="space-y-4">
+                        <p className="text-xs text-gray-400 font-medium italic leading-relaxed">
+                            "Share your knowledge. contributing to the pack increases your global trust level and unlocks expertise badges."
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {profile.memory.expertiseNodes.map(node => (
+                                <span key={node} className="px-2 py-1 bg-white/10 rounded-lg text-[7px] font-black uppercase tracking-widest border border-white/10">{node}</span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="mt-6 flex items-center gap-3">
+                        <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_#10b981]"></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Active Pulse Sync</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-1 flex flex-col bg-white/80 dark:bg-[#1a1c2e]/90 backdrop-blur-xl rounded-[3.5rem] shadow-3xl border border-gray-100 dark:border-white/5 overflow-hidden">
+                {/* Chat Header */}
+                <div className="p-8 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-orange-500/10 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">
+                            {CHAT_ROOMS.find(r => r.id === activeRoomId)?.icon}
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                                {CHAT_ROOMS.find(r => r.id === activeRoomId)?.name}
+                            </h3>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1">Live Global Uplink</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Messages Feed */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                    {filteredMessages.map((msg, idx) => {
+                        const isMe = msg.senderId === 'current-user';
+                        return (
+                            <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
+                                <div className={`flex items-end gap-3 max-w-[85%] ${isMe ? 'flex-row-reverse' : ''}`}>
+                                    <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-100 dark:border-white/10 overflow-hidden shadow-md flex-shrink-0">
+                                        {msg.senderPic ? <img src={msg.senderPic} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-orange-500/10 text-orange-500 font-black text-xs uppercase">{msg.senderName[0]}</div>}
+                                    </div>
+                                    <div className={`space-y-2 ${isMe ? 'text-right' : 'text-left'}`}>
+                                        <div className={`flex items-center gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                            <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tight">{msg.senderName}</span>
+                                            <CountryFlag code={msg.senderCountry} />
+                                            {msg.senderBadges.map(b => <TrustBadge key={b} type={b} />)}
+                                        </div>
+                                        <div className={`p-5 rounded-[2rem] shadow-xl relative group/bubble transition-all hover:scale-[1.02] ${
+                                            isMe 
+                                            ? 'bg-orange-500 text-white rounded-tr-none' 
+                                            : 'bg-white dark:bg-white/5 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-white/10 rounded-tl-none'
+                                        }`}>
+                                            <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                                            
+                                            {msg.translatedText && (
+                                                <div className={`mt-4 pt-4 border-t ${isMe ? 'border-white/20' : 'border-gray-100 dark:border-white/5'} animate-fadeIn`}>
+                                                    <p className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 ${isMe ? 'text-white/60' : 'text-orange-500'}`}>
+                                                        AI Path Translation
+                                                    </p>
+                                                    <p className={`text-xs italic font-medium ${isMe ? 'text-white/90' : 'text-gray-500'}`}>{msg.translatedText}</p>
+                                                </div>
+                                            )}
+
+                                            {!isMe && !msg.translatedText && (
+                                                <button 
+                                                    onClick={() => handleTranslateMessage(msg.id)}
+                                                    className="absolute -bottom-6 left-2 opacity-0 group-hover/bubble:opacity-100 transition-opacity text-[8px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1"
+                                                >
+                                                    <GlobeIcon className="w-2 h-2" /> One-Tap Translate
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    <div ref={chatEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="p-8 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20">
+                    <div className="flex gap-4 relative">
+                        <input 
+                            type="text"
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                            placeholder={`Broadcast to ${CHAT_ROOMS.find(r => r.id === activeRoomId)?.name}...`}
+                            className="flex-1 bg-white dark:bg-[#111222] border-2 border-transparent rounded-[2.5rem] py-5 px-10 text-gray-800 dark:text-white font-bold shadow-inner focus:border-orange-500 outline-none transition-all text-lg pr-32"
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                            <button className="p-3 text-gray-400 hover:text-orange-500 transition-colors">
+                                <CompassIcon className="w-6 h-6" />
+                            </button>
+                            <button 
+                                onClick={handleSendMessage}
+                                disabled={!inputText.trim()}
+                                className="bg-orange-500 text-white p-3.5 rounded-2xl shadow-xl shadow-orange-500/20 hover:scale-110 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
+                            >
+                                <svg className="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 mt-4 px-6">
+                        <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Memory Sync Protocol Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.2); border-radius: 10px; }
+                .shadow-3xl { box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.4); }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fadeIn { animation: fadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+            `}</style>
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Community Hub</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Connect with fellow travelers, share your experiences, and discover hidden gems.
-        </p>
-      </div>
-      
-      <div className="space-y-6">
-        <UserProfile name={name} setName={setName} profilePic={profilePic} setProfilePic={setProfilePic} />
-        <CreatePost authorName={name} authorPic={profilePic} onPost={handleNewPost} />
-        <div className="space-y-4">
-            {posts.map(post => <PostItem key={post.id} post={post} onDelete={handleDeletePost} />)}
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Community;

@@ -1,15 +1,67 @@
+
 export enum View {
   Dashboard = 'Dashboard',
   Map = 'Map',
   Booking = 'Booking',
+  Flights = 'Flights',
+  Trains = 'Trains',
+  Tracking = 'Tracking',
+  RoutePlanner = 'RoutePlanner',
+  BhashaSangam = 'BhashaSangam',
   Itinerary = 'Itinerary',
   Budget = 'Budget',
   Utilities = 'Utilities',
   Safety = 'Safety',
   Community = 'Community',
+  GroupPlanning = 'GroupPlanning',
+  Subscription = 'Subscription',
   TravelTips = 'TravelTips',
   TimePass = 'TimePass',
   AppDetail = 'AppDetail',
+  AIStudio = 'AIStudio',
+  LiveGuide = 'LiveGuide'
+}
+
+export interface UserMemory {
+    interests: string[];
+    searchHistory: string[];
+    expertiseNodes: string[];
+    professionalContext: string;
+}
+
+export interface UserProfile {
+    name: string;
+    country: string;
+    subscriptionTier: 'Standard' | 'Global Gold' | 'Free';
+    profilePic: string | null;
+    memory: UserMemory;
+}
+
+export interface GroupMember {
+    id: string;
+    name: string;
+    pic: string | null;
+    country: string;
+    currentLat: number;
+    currentLng: number;
+    isHost: boolean;
+}
+
+export interface GroupSpot {
+    id: string;
+    name: string;
+    votes: number;
+    suggestedBy: string;
+    description: string;
+}
+
+export interface GroupTrip {
+    id: string;
+    code: string;
+    name: string;
+    members: GroupMember[];
+    spots: GroupSpot[];
+    messages: ChatMessage[];
 }
 
 export interface Expense {
@@ -37,17 +89,31 @@ export interface AIBookingSuggestion {
 }
 
 export interface GroundingChunk {
-  web: {
+  web?: {
     uri: string;
     title: string;
   };
+  maps?: {
+    uri: string;
+    title: string;
+  };
+}
+
+export interface MapMarker {
+    id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    uri: string;
 }
 
 export interface AIResponse {
     story?: string;
     suggestions?: AIBookingSuggestion[];
     image?: string;
+    video?: string;
     groundingChunks?: GroundingChunk[];
+    markers?: MapMarker[];
 }
 
 export interface PlaceInfo {
@@ -71,9 +137,32 @@ export interface Post {
   id: string;
   authorName: string;
   authorPic: string | null;
+  authorCountry: string;
+  badges: string[];
   content: string;
   image?: string | null;
   timestamp: number;
+}
+
+export interface ChatMessage {
+    id: string;
+    roomId: string;
+    senderId: string;
+    senderName: string;
+    senderPic: string | null;
+    senderCountry: string;
+    senderBadges: string[];
+    text: string;
+    translatedText?: string;
+    sourceLang: string;
+    timestamp: number;
+}
+
+export interface ChatRoom {
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
 }
 
 export interface OfflineMap {
@@ -101,9 +190,64 @@ export interface TripDetails {
   endDate: string;
 }
 
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+  type: 'info' | 'alert' | 'success';
+}
+
+export interface GlobalIntelligence {
+    location: string;
+    essentials: {
+        cafes: { name: string; type: string }[];
+        hotels: { name: string; rating: string }[];
+        banks: { name: string; services: string }[];
+        culture: { name: string; type: string }[];
+        transport: { name: string; type: string }[];
+    };
+    safety: {
+        police: { name: string; address: string; distance: string };
+        hospital: { name: string; address: string; distance: string };
+        emergency_numbers: string[];
+    };
+    context: {
+        language: string;
+        greeting: string;
+    };
+}
+
+export interface TransitStatus {
+    id: string;
+    status: 'On-time' | 'Delayed' | 'Cancelled' | 'Arrived' | 'Scheduled';
+    current_location: string;
+    progress_percent: number;
+    arrival_node: {
+        gate?: string;
+        terminal?: string;
+        platform?: string;
+        description: string;
+    };
+    amenities: {
+        name: string;
+        type: string;
+        description: string;
+    }[];
+    timezone_info: string;
+    scheduled_arrival: string;
+    estimated_arrival: string;
+}
 
 // Ambient declaration for the Google Identity Services library
 declare global {
+    // Fix: Moved AIStudio interface inside declare global to ensure it refers to the same type as the environment-provided one
+    interface AIStudio {
+        hasSelectedApiKey: () => Promise<boolean>;
+        openSelectKey: () => Promise<void>;
+    }
+
     interface Window {
         google?: {
             accounts: {
@@ -124,27 +268,8 @@ declare global {
                 };
             };
         };
-    }
-    
-    // Ambient types for the Barcode Detection API
-    interface BarcodeDetectorOptions {
-        formats: string[];
-    }
-
-    interface DetectedBarcode {
-        boundingBox: DOMRectReadOnly;
-        rawValue: string;
-        format: string;
-        cornerPoints: { x: number; y: number }[];
-    }
-
-    const BarcodeDetector: {
-        prototype: BarcodeDetector;
-        new(options?: BarcodeDetectorOptions): BarcodeDetector;
-        getSupportedFormats(): Promise<string[]>;
-    };
-
-    interface BarcodeDetector {
-        detect(image: ImageBitmapSource): Promise<DetectedBarcode[]>;
+        // Fixed: Use named type AIStudio and mark as optional to ensure compatibility with environment modifiers
+        aistudio?: AIStudio;
+        L?: any;
     }
 }

@@ -6,6 +6,7 @@ import AuthPage from './components/AuthPage';
 import WelcomePage from './components/WelcomePage';
 import { SearchProvider } from './contexts/SearchContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { UserProvider } from './contexts/UserContext';
 
 type Theme = 'light' | 'dark';
 
@@ -83,11 +84,13 @@ const App: React.FC = () => {
             return <AuthPage onLoginSuccess={handleLoginSuccess} onBack={handleBackToHome} />;
         case 'app':
             return (
-              <LanguageProvider>
-                <SearchProvider>
-                  <MainApp onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
-                </SearchProvider>
-              </LanguageProvider>
+              <UserProvider>
+                <LanguageProvider>
+                  <SearchProvider>
+                    <MainApp onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
+                  </SearchProvider>
+                </LanguageProvider>
+              </UserProvider>
             );
         default:
             return <HomePage onLogin={handleLoginSuccess} onShowAuth={handleShowAuth} />;
@@ -95,7 +98,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 font-sans">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#0F111A]' : 'bg-gray-50'} text-gray-800 dark:text-gray-200 font-sans transition-colors duration-500`}>
       {renderContent()}
     </div>
   );

@@ -1,8 +1,9 @@
 {
   "name": "Bharat Path: Your AI Travel Guide to India",
-  "description": "An AI-powered travel companion to explore the rich culture, history, and spirituality of India. Get personalized suggestions for places, hotels, restaurants, and uncover hidden stories about your destinations. Features include map integration, itinerary planning, travel utilities, safety information, and a community hub.",
+  "description": "An AI-powered travel companion to explore the rich culture, history, and spirituality of India. Features full Gemini 3 integration including Thinking Mode, Veo Video Generation, and Live Conversational AI.",
   "requestFramePermissions": [
     "camera",
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }

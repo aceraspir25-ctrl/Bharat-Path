@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 const AppDetail: React.FC = () => {
@@ -8,7 +9,7 @@ const AppDetail: React.FC = () => {
           App Details: <span className="text-orange-500">Bharat Path</span> (भारत पथ)
         </h1>
         <h2 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mt-2">
-          Travel & Tourism App
+          Universal Travel & Tourism Intelligence
         </h2>
 
         <div className="my-8 border-t border-dashed border-gray-300 dark:border-gray-600"></div>
@@ -19,12 +20,12 @@ const AppDetail: React.FC = () => {
 
         <blockquote className="my-8 p-6 bg-orange-50 dark:bg-gray-700/50 border-l-4 border-orange-500 italic text-gray-800 dark:text-gray-200 rounded-r-lg">
           <p className="text-xl">
-            "Every mile is a story waiting to be told. Bharat Path guides you not just to destinations, but helps you unlock the secrets of India's rich culture and profound heritage."
+            "Every mile is a story waiting to be told. Bharat Path guides you not just to destinations, but helps you unlock the secrets of the world's rich culture and heritage."
           </p>
         </blockquote>
         
         <p className="text-md text-gray-600 dark:text-gray-400">
-          Crafted by <span className="font-semibold text-orange-500">Shashank Mishra</span>, this app is the meeting point of technology and India's glorious history. Come, walk the true 'Path' of Bharat.
+          Crafted by the <span className="font-semibold text-orange-500">Bharat Path Team</span>, this app is the meeting point of technology and history. Come, walk the true 'Path' of the world.
         </p>
       </div>
 

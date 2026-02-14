@@ -2,7 +2,10 @@
 {
   "dashboard": "डैशबोर्ड",
   "map": "नक्शा",
-  "booking": "बुकिंग",
+  "booking": "होटल और स्टे",
+  "flights": "उड़ानें",
+  "trains": "ट्रेनें",
+  "routePlanner": "AI रूट प्लानर",
   "itinerary": "यात्रा कार्यक्रम",
   "budget": "बजट",
   "utilities": "उपयोगिताएँ",
