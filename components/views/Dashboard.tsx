@@ -2,8 +2,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useSearch } from '../../contexts/SearchContext';
 import { useUser } from '../../contexts/UserContext';
 import useLocalStorage from '../../hooks/useLocalStorage';
-import { View, Expense, GlobalIntelligence, SearchSuggestion, TripDetails } from '../../types';
-import { SearchIcon, CompassIcon, RouteIcon, MapIcon } from '../icons/Icons';
+import { View, Expense, GlobalIntelligence, SearchSuggestion, TripDetails, GroundingChunk } from '../../types';
+import { SearchIcon, CompassIcon, RouteIcon, MapIcon, ExternalLinkIcon } from '../icons/Icons';
 import { generateSpeech, playRawPcm, getAIResponse, getGlobalIntelligence, getSmartSuggestions } from '../../services/geminiService';
 
 const AmbientMandala: React.FC<{ className?: string; rotationSpeed?: string; scale?: number; reverse?: boolean }> = ({ className, rotationSpeed = '120s', scale = 1, reverse = false }) => (
@@ -48,7 +48,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Suggestion Engine States
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
 
@@ -80,7 +79,7 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (searchQuery.length > 2) {
+      if (searchQuery.length > 2 && !loading) {
         setIsSearchingSuggestions(true);
         try {
           const res = await getSmartSuggestions(searchQuery);
@@ -95,7 +94,7 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
       }
     }, 1000);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, loading]);
 
   const handleAction = async (query: string) => {
     setSearchQuery(query);
@@ -114,11 +113,10 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
   };
 
   const totalSpent = useMemo(() => expenses.reduce((acc, curr) => acc + curr.amount, 0), [expenses]);
-  const budgetProgress = Math.min((totalSpent / 50000) * 100, 100); // Simulated budget limit
+  const budgetProgress = Math.min((totalSpent / 50000) * 100, 100);
 
   return (
     <div className="relative min-h-full -m-4 md:-m-8 p-4 md:p-8 overflow-x-hidden">
-      {/* Immersive Background Elements */}
       <div className="absolute inset-0 -z-20 opacity-[0.03] dark:opacity-[0.08] pointer-events-none">
          <img src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=2000&q=80" className="w-full h-full object-cover scale-110" alt="" />
       </div>
@@ -126,7 +124,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
 
       <div className="max-w-7xl mx-auto space-y-10 animate-fadeIn relative z-10 pb-20">
         
-        {/* --- TRIP INITIALIZATION PROMPT --- */}
         {!tripDetails && (
             <div className="bg-gradient-to-r from-[#FF9933] to-[#FF4500] p-8 rounded-[3rem] text-white flex flex-col lg:flex-row items-center justify-between gap-8 shadow-3xl animate-pulseScale border-b-8 border-orange-700/30">
                 <div className="flex items-center gap-8">
@@ -145,7 +142,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
             </div>
         )}
 
-        {/* HERO SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 flex flex-col justify-between bg-white/40 dark:bg-[#1a1c2e]/80 backdrop-blur-3xl rounded-[4rem] p-12 shadow-2xl border border-white/30 dark:border-white/5 relative overflow-hidden group">
                 <div className="relative z-10">
@@ -194,7 +190,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
             </div>
         </div>
 
-        {/* INTELLIGENCE GRID */}
         <div className="space-y-8">
             <div className="flex items-center justify-between px-4">
                 <h3 className="text-[12px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-[0.5em] flex items-center gap-4 w-full">
@@ -219,7 +214,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
             )}
         </div>
 
-        {/* AI PLANNER SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className="lg:col-span-8 bg-white/60 dark:bg-[#1a1c2e]/90 backdrop-blur-3xl rounded-[4rem] p-10 md:p-14 shadow-3xl border border-white/40 dark:border-white/5 group relative overflow-hidden">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12 relative z-10">
@@ -250,7 +244,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
                 </div>
               </form>
               
-              {/* Suggestion Dropdown */}
               {suggestions.length > 0 && (
                 <ul className="absolute z-[100] w-full bg-white dark:bg-[#1A1C26] border border-gray-100 dark:border-white/10 rounded-[3rem] mt-6 shadow-4xl overflow-hidden animate-fadeInUp backdrop-blur-3xl p-4 space-y-2">
                   {suggestions.map((item, index) => (
@@ -309,10 +302,35 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
                         </button>
                      </div>
                      
-                     {/* Story Rendering */}
-                     {searchResults?.story && <p className="text-gray-800 dark:text-gray-300 leading-relaxed font-medium text-xl border-l-8 border-orange-500/40 pl-10 italic drop-shadow-sm">{searchResults.story}</p>}
+                     {searchResults?.story && (
+                        <div className="space-y-8">
+                             <p className="text-gray-800 dark:text-gray-300 leading-relaxed font-medium text-xl border-l-8 border-orange-500/40 pl-10 italic drop-shadow-sm">{searchResults.story}</p>
+                             
+                             {/* GROUNDING CITATIONS SECTION (MANDATORY) */}
+                             {searchResults.groundingChunks && searchResults.groundingChunks.length > 0 && (
+                                <div className="pt-6 border-t border-gray-100 dark:border-white/5">
+                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4">Verification Registry (Grounding)</h5>
+                                    <div className="flex flex-wrap gap-3">
+                                        {searchResults.groundingChunks.map((chunk, idx) => (
+                                            chunk.web && (
+                                                <a 
+                                                    key={idx}
+                                                    href={chunk.web.uri}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-white/5 hover:bg-orange-500/10 border border-gray-100 dark:border-white/5 rounded-xl transition-all group/link"
+                                                >
+                                                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 group-hover/link:text-orange-500 truncate max-w-[150px]">{chunk.web.title || 'Knowledge Source'}</span>
+                                                    <ExternalLinkIcon className="w-3 h-3 text-gray-400 group-hover/link:text-orange-500" />
+                                                </a>
+                                            )
+                                        ))}
+                                    </div>
+                                </div>
+                             )}
+                        </div>
+                     )}
                      
-                     {/* Structured Suggestions Rendering */}
                      {searchResults?.suggestions && searchResults.suggestions.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
                             {searchResults.suggestions.map((s, idx) => (
@@ -373,6 +391,22 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
             </div>
           </div>
         </div>
+
+        {/* FOUNDER FOOTER SECTION */}
+        <div className="pt-20 pb-10 text-center animate-fadeInUp" style={{ animationDelay: '1000ms' }}>
+            <div className="inline-block relative group">
+                <div className="absolute -inset-2 bg-gradient-to-r from-orange-600 to-red-600 rounded-full blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
+                <div className="relative px-12 py-6 bg-black dark:bg-[#111222] ring-1 ring-white/10 rounded-full leading-none flex flex-col items-center">
+                    <p className="neon-text text-2xl md:text-3xl font-black uppercase tracking-tighter italic">
+                        SHASHANK MISHRA
+                    </p>
+                    <p className="mt-2 text-[10px] font-black text-gray-500 uppercase tracking-[0.6em] opacity-80">
+                        The Founder of <span className="text-orange-500">BHARAT PATH</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
       </div>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -384,6 +418,45 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
         .shadow-3xl { box-shadow: 0 40px 100px -20px rgba(0,0,0,0.3); }
         .shadow-4xl { box-shadow: 0 50px 120px -30px rgba(0,0,0,0.5); }
         .border-3 { border-width: 3px; }
+        
+        .neon-text {
+            color: #fff;
+            text-shadow: 
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #f97316,
+                0 0 82px #f97316,
+                0 0 92px #f97316,
+                0 0 102px #f97316,
+                0 0 151px #f97316;
+            animation: neon-pulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes neon-pulse {
+            from {
+                text-shadow: 
+                    0 0 7px #fff,
+                    0 0 10px #fff,
+                    0 0 21px #fff,
+                    0 0 42px #f97316,
+                    0 0 82px #f97316,
+                    0 0 92px #f97316,
+                    0 0 102px #f97316,
+                    0 0 151px #f97316;
+            }
+            to {
+                text-shadow: 
+                    0 0 4px #fff,
+                    0 0 7px #fff,
+                    0 0 13px #fff,
+                    0 0 25px #f97316,
+                    0 0 50px #f97316,
+                    0 0 60px #f97316,
+                    0 0 70px #f97316,
+                    0 0 100px #f97316;
+            }
+        }
       `}</style>
     </div>
   );

@@ -18,9 +18,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     const loadTranslations = async () => {
       try {
-        // Use absolute paths for fetch, relative to the root index.html
-        const enResponse = await fetch('/translations/en.json');
-        const hiResponse = await fetch('/translations/hi.json');
+        // Use root level paths for translation files
+        const enResponse = await fetch('/en.json');
+        const hiResponse = await fetch('/hi.json');
         
         if (!enResponse.ok || !hiResponse.ok) {
             throw new Error('Network response was not ok for translation files.');

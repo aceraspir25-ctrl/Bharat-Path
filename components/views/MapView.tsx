@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
 import { useUser } from '../../contexts/UserContext';
 import { PlaceInfo, MapMarker, View } from '../../types';
-import { SearchIcon, CompassIcon, RouteIcon, MapIcon } from '../icons/Icons';
+import { SearchIcon, CompassIcon, RouteIcon, MapIcon, ExternalLinkIcon } from '../icons/Icons';
 import { searchPlacesWithAI, getPlaceInformation } from '../../services/geminiService';
 
 const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> }> = ({ onAIService }) => {
@@ -23,14 +22,16 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
   const markersLayerRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
 
-  // Initialize Map with proper resizing fix
+  // Core Registry Node: Raipur Coordinates
+  const RAIPUR_POS: [number, number] = [21.2514, 81.6296];
+
   useEffect(() => {
     if (!mapInstanceRef.current && mapContainerRef.current && window.L) {
       const L = window.L;
       const map = L.map(mapContainerRef.current, {
           zoomControl: false,
           attributionControl: false
-      }).setView([20, 0], 2); // Initial global view
+      }).setView(RAIPUR_POS, 13); // High resolution zoom for city entry
       
       const darkTiles = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
       const lightTiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -42,7 +43,32 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       mapInstanceRef.current = map;
       markersLayerRef.current = L.layerGroup().addTo(map);
       
-      // Fix for Leaflet initialization in containers
+      // Initialize with the special Raipur greeting node
+      L.marker(RAIPUR_POS, {
+          icon: L.divIcon({
+              className: 'custom-div-icon',
+              html: `
+                <div class="marker-wrapper active animate-bounce">
+                    <div class="marker-pin shadow-2xl bg-orange-600 border-white">
+                        <span class="text-[10px]">🚩</span>
+                    </div>
+                    <div class="marker-aura"></div>
+                </div>
+              `,
+              iconSize: [40, 40],
+              iconAnchor: [20, 40]
+          })
+      }).addTo(markersLayerRef.current)
+        .bindPopup(`
+          <div class="p-2 text-center">
+            <p class="font-black text-xs uppercase tracking-tight text-orange-600">Bhai, Bharat Path ab Raipur mein Live hai! 🚩</p>
+          </div>
+        `, {
+            className: 'custom-popup',
+            closeButton: false
+        })
+        .openPopup();
+
       setTimeout(() => {
           map.invalidateSize();
       }, 400);
@@ -57,7 +83,6 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
     };
   }, []);
 
-  // Update tiles when theme changes
   useEffect(() => {
       if (mapInstanceRef.current && tileLayerRef.current) {
           const darkTiles = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
@@ -82,13 +107,14 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
     } catch (err) {} finally { setIsFetchingWisdom(false); }
   }, [onAIService, profile]);
 
-  // Render markers layer
   useEffect(() => {
     if (mapInstanceRef.current && markersLayerRef.current && window.L) {
       const L = window.L;
-      markersLayerRef.current.clearLayers();
+      // Note: We don't clear the base Raipur marker if it's the initial state
+      // but search results will populate the layer.
       
       if (markers.length > 0) {
+        markersLayerRef.current.clearLayers();
         const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
         
         markers.forEach(m => {
@@ -129,7 +155,6 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
     setIsSearching(true);
     setSelectedMarkerId(null);
     
-    // Use current map center to provide context to the AI search
     const center = mapInstanceRef.current?.getCenter();
     const contextCoords = center ? { lat: center.lat, lng: center.lng } : undefined;
 
@@ -171,10 +196,10 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
   };
 
   const categories = [
-      { id: 'stores', label: 'Stores', icon: '🛒', query: 'Shops and supermarkets near here' },
-      { id: 'food', label: 'Food', icon: '🥘', query: 'Great vegetarian food spots nearby' },
-      { id: 'medical', label: 'Medical', icon: '🏥', query: 'Pharmacies and healthcare centers' },
-      { id: 'stays', label: 'Stays', icon: '🏨', query: 'Popular hotels and guest houses here' },
+      { id: 'stores', label: 'Stores', icon: '🛒', query: 'Shops near Raipur' },
+      { id: 'food', label: 'Food', icon: '🥘', query: 'Vegetarian food spots in Raipur' },
+      { id: 'medical', label: 'Medical', icon: '🏥', query: 'Hospitals in Raipur city' },
+      { id: 'stays', label: 'Stays', icon: '🏨', query: 'Hotels in Raipur Chhattisgarh' },
   ];
 
   return (
@@ -192,7 +217,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                 onChange={(e) => setSearchQuery(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Find any city, village, or store worldwide..." 
-                className="w-full bg-white dark:bg-[#1a1c2e] border-4 border-transparent dark:border-white/5 rounded-[2rem] py-5 px-14 text-gray-900 dark:text-white font-bold shadow-3xl focus:border-orange-500 outline-none transition-all text-lg" 
+                className="w-full bg-white dark:bg-[#1a1c2e] border-4 border-transparent dark:border-white/5 rounded-[2.5rem] py-5 px-14 text-gray-900 dark:text-white font-bold shadow-3xl focus:border-orange-500 outline-none transition-all text-lg" 
             />
             <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
                 {isSearching ? <div className="w-5 h-5 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div> : <SearchIcon className="w-6 h-6" />}
@@ -206,7 +231,6 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
         </div>
       </header>
 
-      {/* Category Quick Picks */}
       <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
           {categories.map(cat => (
               <button
@@ -221,7 +245,6 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[75vh]">
-        {/* Left Side: Registry List */}
         <div className="lg:col-span-3 h-full overflow-hidden flex flex-col bg-white/60 dark:bg-[#111222]/80 backdrop-blur-xl rounded-[3.5rem] border border-gray-100 dark:border-white/5 shadow-3xl">
             <div className="p-8 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20">
                 <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] flex items-center justify-between">
@@ -245,18 +268,17 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                 )) : (
                     <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-10">
                         <div className="w-24 h-24 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-pulse">🛰️</div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">Search the world registry to populate spatial nodes.</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">Raipur Node Registry synchronized. Search to explore more world nodes.</p>
                     </div>
                 )}
             </div>
         </div>
 
-        {/* Center: Main Map Engine */}
         <div className="lg:col-span-6 relative">
-            <div className="w-full h-full rounded-[4rem] overflow-hidden shadow-4xl border-4 border-white/50 dark:border-white/5 bg-[#111222]">
+            {/* Raipur Initialized Map Container */}
+            <div className="w-full h-full rounded-[4rem] overflow-hidden shadow-4xl border-4 border-white/50 dark:border-white/5 bg-[#111222]" style={{ height: "100%", width: "100%" }}>
                 <div ref={mapContainerRef} className="w-full h-full z-0"></div>
                 
-                {/* Floating Map Controls */}
                 <div className="absolute top-8 right-8 z-[1000] flex flex-col gap-4">
                     <button 
                         onClick={handleLocateMe} 
@@ -281,13 +303,12 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
             </div>
         </div>
 
-        {/* Right Side: Wisdom Hub */}
         <div className="lg:col-span-3 h-full overflow-y-auto custom-scrollbar bg-white/60 dark:bg-[#111222]/80 backdrop-blur-xl rounded-[3.5rem] border border-gray-100 dark:border-white/5 shadow-3xl p-8 relative">
             {!selectedMarkerId ? (
                 <div className="h-full flex flex-col justify-center items-center text-center opacity-40">
                     <div className="w-24 h-24 bg-orange-500/10 rounded-[2.5rem] flex items-center justify-center text-orange-500 text-5xl shadow-inner animate-bounceSubtle">🧭</div>
                     <h4 className="text-sm font-black uppercase mt-6 tracking-widest text-gray-500">Wisdom Hub</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 leading-relaxed">Select a spatial node to decode its historical and local metadata.</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 leading-relaxed">Raipur is now live on the Path! Select any node to decode its historical and local metadata.</p>
                 </div>
             ) : (
                 <div className="animate-fadeIn space-y-10">
@@ -325,12 +346,25 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                                 </div>
                             </div>
 
+                            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-white/5">
+                                <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Verification Node</h5>
+                                <a 
+                                    href={markers.find(m => m.id === selectedMarkerId)?.uri} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between p-4 bg-orange-500/5 rounded-2xl border border-orange-500/20 group/link transition-all hover:bg-orange-500 hover:text-white"
+                                >
+                                    <span className="text-[10px] font-black uppercase tracking-widest group-hover/link:text-white text-orange-500">Open Digital Twin</span>
+                                    <ExternalLinkIcon className="w-4 h-4" />
+                                </a>
+                            </div>
+
                             <div className="bg-blue-600/5 p-8 rounded-[2.5rem] border border-blue-600/10">
                                 <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Local Ethics</h4>
                                 <p className="text-xs text-blue-900 dark:text-blue-200 font-bold italic leading-relaxed">"{placeInfo.customs}"</p>
                             </div>
 
-                            <div className="pt-6">
+                            <div className="pt-6 pb-12">
                                 <a 
                                     href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(markers.find(m => m.id === selectedMarkerId)?.name || '')}`}
                                     target="_blank"
@@ -350,70 +384,30 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.2); border-radius: 10px; }
-        
-        .marker-wrapper {
-            position: relative;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .marker-pin {
-            width: 24px;
-            height: 24px;
-            background: #f97316;
-            border: 3px solid white;
-            border-radius: 10px 10px 10px 0;
-            transform: rotate(-45deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2;
-        }
+        .marker-wrapper { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .marker-pin { width: 24px; height: 24px; background: #f97316; border: 3px solid white; border-radius: 10px 10px 10px 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; z-index: 2; }
         .marker-pin span { transform: rotate(45deg); }
         .marker-wrapper.active { transform: scale(1.4) translateY(-10px); }
         .marker-wrapper.active .marker-pin { background: #3b82f6; }
-        
-        .marker-aura {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: rgba(249, 115, 22, 0.2);
-            border-radius: 50%;
-            animation: aura-expand 2s infinite;
-            z-index: 1;
-        }
-        @keyframes aura-expand {
-            0% { transform: scale(0.5); opacity: 0.8; }
-            100% { transform: scale(2); opacity: 0; }
-        }
-
-        .user-beacon {
-            width: 18px;
-            height: 18px;
-            background: #3b82f6;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
-            animation: beacon-pulse 1.5s infinite;
-        }
-        @keyframes beacon-pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-            100% { transform: scale(1); }
-        }
-
+        .marker-aura { position: absolute; width: 60px; height: 60px; background: rgba(249, 115, 22, 0.2); border-radius: 50%; animation: aura-expand 2s infinite; z-index: 1; }
+        @keyframes aura-expand { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
+        .user-beacon { width: 18px; height: 18px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); animation: beacon-pulse 1.5s infinite; }
+        @keyframes beacon-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); } 100% { transform: scale(1); } }
         .leaflet-container { background: #111222 !important; outline: none; }
         .shadow-3xl { box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.4); }
         .shadow-4xl { box-shadow: 0 50px 120px -30px rgba(0, 0, 0, 0.6); }
-        
-        @keyframes bounceSubtle {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
+        @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .animate-bounceSubtle { animation: bounceSubtle 3s ease-in-out infinite; }
+        .leaflet-popup-content-wrapper { 
+            border-radius: 1.5rem !important; 
+            padding: 4px !important; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+            border: 2px solid #f97316;
+        }
+        .dark .leaflet-popup-content-wrapper {
+            background: #111222 !important;
+            color: white !important;
+        }
       `}</style>
     </div>
   );

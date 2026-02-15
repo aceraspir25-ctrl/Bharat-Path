@@ -62,20 +62,6 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    // Real-time search action with debouncing
-    useEffect(() => {
-        if (!searchQuery.trim() || !isFocused) return;
-
-        const timer = setTimeout(() => {
-            if (searchQuery.length > 3) {
-                performSearch(searchQuery);
-                // We stay in current view unless explicit submit, but results sync in background
-            }
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [searchQuery, performSearch, isFocused]);
-
     const handleExecuteSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
         if (e) e.preventDefault();
         if (searchQuery.trim()) {
@@ -125,7 +111,9 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
         }
     }, [language, setSearchQuery, performSearch, setActiveView]);
 
-    const handleVoiceInput = () => {
+    const handleVoiceInput = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!recognitionRef.current) {
             alert("Voice recognition is not supported in this browser. Please try Chrome or Edge.");
             return;
@@ -149,56 +137,58 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                 </button>
             </div>
 
-            <form 
-                onSubmit={handleExecuteSearch}
-                className="flex-1 flex items-center justify-center px-4 max-w-2xl mx-auto gap-3"
-            >
-                <div className={`flex-1 relative group transition-all duration-300 ${isFocused ? 'scale-[1.02]' : ''}`}>
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleExecuteSearch(e)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        placeholder={isListening ? "Listening to your path..." : "Search places, stories, hotels..."}
-                        className={`w-full pl-12 pr-12 py-2.5 bg-white border-none text-[#111222] rounded-2xl focus:ring-4 focus:ring-white/40 placeholder-gray-400 transition-all font-bold shadow-inner ${
-                            isListening || loading ? 'ring-2 ring-white/50' : ''
-                        }`}
-                    />
-                    <button 
-                        type="submit"
-                        className={`absolute inset-y-0 left-0 flex items-center pl-4 transition-colors z-10 ${isFocused ? 'text-orange-500' : 'text-gray-400'}`}
-                        title="Start Search"
+            <div className="flex-1 flex items-center justify-center px-4 max-w-2xl mx-auto gap-3">
+                <div className="flex-1 relative group">
+                    <form 
+                        onSubmit={handleExecuteSearch}
+                        className="relative transition-all duration-300"
                     >
-                      <SearchIcon className="w-5 h-5" />
-                    </button>
-                    {loading && (
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                            <div className="w-4 h-4 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
+                        <div className={`absolute inset-y-0 left-0 flex items-center pl-4 transition-colors z-10 ${isFocused ? 'text-orange-500' : 'text-gray-400'}`}>
+                          <SearchIcon className="w-5 h-5" />
                         </div>
-                    )}
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleExecuteSearch(e)}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => setIsFocused(false)}
+                            placeholder={isListening ? "Listening..." : "Search your global path..."}
+                            className={`w-full pl-12 pr-12 py-3.5 bg-white border-none text-[#111222] rounded-[1.5rem] focus:ring-4 focus:ring-white/40 placeholder-gray-400 transition-all font-bold shadow-inner ${
+                                isListening || loading ? 'ring-2 ring-white/50' : ''
+                            }`}
+                        />
+                        {loading && (
+                            <div className="absolute inset-y-0 right-4 flex items-center">
+                                <div className="w-5 h-5 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
+                            </div>
+                        )}
+                    </form>
                 </div>
+                
                 <button 
                     type="button"
                     onClick={handleVoiceInput} 
                     title={isListening ? "Stop listening" : "Search with voice"}
-                    className={`p-3 rounded-2xl transition-all shadow-lg flex items-center justify-center ${
+                    className={`p-3.5 rounded-[1.5rem] transition-all flex items-center justify-center shadow-xl flex-shrink-0 ${
                         isListening 
-                        ? 'bg-[#111222] text-white animate-pulse' 
-                        : 'bg-white text-[#FF9933] hover:bg-[#111222] hover:text-white'
+                        ? 'bg-red-500 text-white animate-pulse scale-110 ring-4 ring-red-500/20' 
+                        : 'bg-white text-orange-500 hover:bg-[#111222] hover:text-white active:scale-90'
                     }`}
                 >
-                    < MicrophoneIcon className="w-5 h-5" />
+                    <MicrophoneIcon className={`w-6 h-6 ${isListening ? 'scale-110' : ''}`} />
                 </button>
-            </form>
+                
+                <button 
+                    type="button"
+                    onClick={() => handleExecuteSearch()}
+                    className="hidden sm:block bg-[#111222] text-white px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 flex-shrink-0"
+                >
+                    Explore
+                </button>
+            </div>
             
             <div className="flex items-center space-x-6 pr-4">
-                 <div className="hidden lg:flex items-center gap-2 text-[#111222]">
-                    <GlobeIcon className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{language === 'hi' ? 'Hindi' : 'English'}</span>
-                </div>
-
                 <div className="relative" ref={notificationRef}>
                     <button 
                         type="button"
@@ -241,11 +231,10 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                     <div 
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
                         className="w-10 h-10 rounded-2xl border-2 border-[#111222] p-0.5 shadow-lg cursor-pointer overflow-hidden transform hover:scale-105 transition-transform bg-white"
-                        title="User Profile"
                     >
                         <img 
                             src={profile.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"} 
-                            alt="User Profile" 
+                            alt="User" 
                             className="w-full h-full object-cover" 
                         />
                     </div>
@@ -256,14 +245,6 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                                 <p className="text-[11px] font-black text-white uppercase tracking-tight line-clamp-1">{profile.name}</p>
                                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Global Explorer</p>
                             </div>
-                            
-                            <button 
-                                type="button"
-                                onClick={() => { setActiveView(View.Community); setShowProfileMenu(false); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 rounded-2xl transition-all uppercase tracking-widest"
-                            >
-                                <span className="text-base">👤</span> My Account
-                            </button>
                             
                             <button 
                                 type="button"
