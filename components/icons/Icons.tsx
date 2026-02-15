@@ -67,14 +67,12 @@ export const BellIconSolid: React.FC = () => (
     </svg>
 );
 
-// Fixed: Added className prop to SearchIcon
 export const SearchIcon: React.FC<{className?: string}> = ({className}) => (
   <svg className={className || "w-5 h-5 text-gray-400"} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
   </svg>
 );
 
-// Fixed: Added className prop to GlobeIcon
 export const GlobeIcon: React.FC<{className?: string}> = ({className}) => (
     <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9V3m0 18a9 9 0 009-9M3 12a9 9 0 019-9m-9 9h18" />
@@ -89,7 +87,6 @@ export const SunIcon: React.FC<{className?: string}> = ({className}) => (
     <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></Icon>
 );
 
-// Fixed: Added className prop to MicrophoneIcon
 export const MicrophoneIcon: React.FC<{className?: string}> = ({className}) => (
     <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
@@ -128,7 +125,6 @@ export const BhashaIcon: React.FC<{className?: string}> = ({className}) => (
     <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 11.37 9.19 15.683 5 19" /></Icon>
 );
 
-// --- Train Booking Form Icons --- //
 const UtilityIcon: React.FC<{ children: React.ReactNode, size?: string }> = ({ children, size = "w-8 h-8" }) => (
     <div className={`text-red-500 ${size}`}>{children}</div>
 );

@@ -349,7 +349,7 @@ const Flights: React.FC = () => {
   // Status Lookup State
   const [lookupNumber, setLookupNumber] = useState('');
   const [lookupDate, setLookupDate] = useState(new Date().toISOString().split('T')[0]);
-  const [statusResult, setStatusResult] = useState<any>(null);
+  const [statusResultText, setStatusResultText] = useState<string | null>(null);
   const [statusCitations, setStatusCitations] = useState<GroundingChunk[]>([]);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
@@ -397,11 +397,11 @@ const Flights: React.FC = () => {
     if (!lookupNumber || !lookupDate) return;
 
     setIsLookingUp(true);
-    setStatusResult(null);
+    setStatusResultText(null);
     setStatusCitations([]);
     try {
-      const { data, groundingChunks } = await getFlightStatus(lookupNumber, lookupDate);
-      setStatusResult(data);
+      const { text, groundingChunks } = await getFlightStatus(lookupNumber, lookupDate);
+      setStatusResultText(text);
       setStatusCitations(groundingChunks);
     } catch (err: any) {
       setFeedback({ message: err.message || 'Lookup failed.', type: 'error' });
@@ -651,50 +651,19 @@ const Flights: React.FC = () => {
                 </button>
               </form>
 
-              {statusResult && (
+              {statusResultText && (
                 <div className="mt-10 space-y-8 animate-fadeIn">
-                  <div className="flex justify-between items-center p-5 bg-white/5 rounded-[2rem] border border-white/5 backdrop-blur-md">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Uplink Status</span>
-                    <span className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
-                      statusResult.status?.toLowerCase().includes('delayed') || statusResult.status?.toLowerCase().includes('cancelled') 
-                      ? 'bg-red-500/10 text-red-500 border-red-500/20' 
-                      : 'bg-green-500/10 text-green-500 border-green-500/20'
-                    }`}>
-                      {statusResult.status || 'Active Path'}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 group/info transition-all hover:bg-white/10 shadow-lg">
-                      <p className="text-[9px] text-gray-500 font-black uppercase mb-2 tracking-widest">Terminal</p>
-                      <p className="text-white font-black text-2xl tracking-tighter">{statusResult.terminal || '---'}</p>
-                    </div>
-                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 group/info transition-all hover:bg-white/10 shadow-lg">
-                      <p className="text-[9px] text-gray-500 font-black uppercase mb-2 tracking-widest">Gate</p>
-                      <p className="text-white font-black text-2xl tracking-tighter">{statusResult.gate || '---'}</p>
-                    </div>
-                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 group/info transition-all hover:bg-white/10 shadow-lg">
-                      <p className="text-[9px] text-blue-400 font-black uppercase mb-2 tracking-widest">Est. Dept</p>
-                      <p className="text-white font-black text-2xl tracking-tighter">{statusResult.estimatedDeparture || '---'}</p>
-                    </div>
-                    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 group/info transition-all hover:bg-white/10 shadow-lg">
-                      <p className="text-[9px] text-orange-400 font-black uppercase mb-2 tracking-widest">Est. Arrv</p>
-                      <p className="text-white font-black text-2xl tracking-tighter">{statusResult.estimatedArrival || '---'}</p>
-                    </div>
-                  </div>
-
-                  <div className="p-6 bg-blue-500/5 rounded-[2rem] border border-blue-500/10 backdrop-blur-sm">
-                     <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <RouteIcon className="w-3 h-3" /> Sector Path
-                     </p>
-                     <p className="text-sm text-blue-100 font-black uppercase tracking-widest">
-                        {statusResult.origin || 'ORG'} <span className="text-orange-500 mx-2">➔</span> {statusResult.destination || 'DST'}
-                     </p>
+                  <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 backdrop-blur-md shadow-2xl relative overflow-hidden group/result">
+                     <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-6">Synthesized Real-Time Data</p>
+                     <div className="text-white text-sm font-medium leading-relaxed italic whitespace-pre-wrap border-l-4 border-blue-500 pl-6">
+                        {statusResultText}
+                     </div>
+                     <div className="absolute top-0 right-0 p-4 opacity-5 text-4xl group-hover/result:scale-125 transition-transform">🛬</div>
                   </div>
 
                   {statusCitations.length > 0 && (
                     <div className="space-y-4">
-                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Sources & Grounding</p>
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Sources & Grounding Registry</p>
                       <div className="flex flex-wrap gap-2">
                         {statusCitations.map((chunk, idx) => chunk.web && (
                           <a 

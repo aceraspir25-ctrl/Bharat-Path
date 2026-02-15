@@ -1,5 +1,5 @@
 
-import { createContext, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { UserProfile } from '../types';
 
@@ -8,6 +8,7 @@ interface UserContextType {
     updateMemory: (interests: string[], context?: string) => void;
     addExpertiseBadge: (badge: string) => void;
     setSubscriptionTier: (tier: UserProfile['subscriptionTier']) => void;
+    updateProfile: (updates: Partial<UserProfile>) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -27,6 +28,16 @@ const getInitialProfile = (): UserProfile => ({
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [profile, setProfile] = useLocalStorage<UserProfile>('bharat_path_profile_v1', getInitialProfile());
+
+    const updateProfile = useCallback((updates: Partial<UserProfile>) => {
+        setProfile(prev => {
+            const newProfile = { ...prev, ...updates };
+            // Keep legacy keys in sync for initial loads if needed
+            if (updates.name) localStorage.setItem('userName', updates.name);
+            if (updates.profilePic) localStorage.setItem('userProfilePic', updates.profilePic);
+            return newProfile;
+        });
+    }, [setProfile]);
 
     const updateMemory = useCallback((interests: string[], context?: string) => {
         setProfile(prev => ({
@@ -54,7 +65,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [setProfile]);
 
     return (
-        <UserContext.Provider value={{ profile, updateMemory, addExpertiseBadge, setSubscriptionTier }}>
+        <UserContext.Provider value={{ profile, updateMemory, addExpertiseBadge, setSubscriptionTier, updateProfile }}>
             {children}
         </UserContext.Provider>
     );

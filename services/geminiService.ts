@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, Type, Modality, LiveServerMessage } from "@google/genai";
-import { AIResponse, AIBookingSuggestion, PlaceInfo, RouteDetails, GroundingChunk, Booking, AIActivitySuggestion, MapMarker, GlobalIntelligence, TransitStatus, UserProfile } from '../types';
+import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { AIResponse, PlaceInfo, RouteDetails, GroundingChunk, Booking, MapMarker, GlobalIntelligence, TransitStatus, UserProfile, SearchSuggestion } from '../types';
 
 const CORE_PERSONA = `You are the 'Bharat Path Core Intelligence'.
 Memory Protocol: 
@@ -25,6 +25,19 @@ const bookingSuggestionSchema = {
     }
 };
 
+const smartSuggestionsSchema = {
+    type: Type.ARRAY,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING, description: "Name of the suggestion." },
+            type: { type: Type.STRING, description: "Category (e.g. City, Hotel, Landmark)." },
+            local_veg_specialty: { type: Type.STRING, description: "Authentic local vegetarian dish." }
+        },
+        required: ["name", "type", "local_veg_specialty"]
+    }
+};
+
 const getMetadataString = (profile: UserProfile) => `
 [GLOBAL PROFILE METADATA]
 Explorer: ${profile.name} (Origin: ${profile.country})
@@ -35,20 +48,22 @@ Subscription: ${profile.subscriptionTier}
 `;
 
 /**
- * Robust Retry Utility with Exponential Backoff for Quota Management
+ * Robust Retry Utility with Exponential Backoff for Quota Management (429 fix)
  */
-async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 4, initialDelay = 1000): Promise<T> {
+async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 4, initialDelay = 1500): Promise<T> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
             return await fn();
         } catch (error: any) {
             lastError = error;
-            const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota');
+            const errorMsg = error.message || "";
+            // Check for rate limit or resource exhausted errors
+            const isRateLimit = errorMsg.includes('429') || error.status === 429 || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
             
             if (isRateLimit && i < maxRetries - 1) {
                 const delay = initialDelay * Math.pow(2, i);
-                console.warn(`Neural quota reached. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+                console.warn(`Neural quota reached. Auto-resync in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
@@ -59,7 +74,29 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 4, initialDel
 }
 
 /**
- * Main Content Generation with Thinking and Grounding
+ * AI Powered Diverse Suggestions Engine (Unbiased)
+ */
+export const getSmartSuggestions = async (input: string): Promise<SearchSuggestion[]> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `User is exploring "${input}" on Bharat Path. 
+            Provide 5 diverse suggestions (Cities, Hotels, or Local Spots). 
+            For food, suggest authentic local vegetarian cuisine of that specific region. 
+            DO NOT repeat specific common items like 'Paneer' or 'Momos' unless it's the uniquely dominant local specialty. 
+            Treat all vegetarian categories equally.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: smartSuggestionsSchema
+            }
+        });
+        return JSON.parse(response.text || "[]");
+    });
+};
+
+/**
+ * Main Content Generation
  */
 export const getAIResponse = async (query: string, profile: UserProfile, options: { useThinking?: boolean; useGrounding?: boolean; fast?: boolean } = {}): Promise<AIResponse> => {
     return callWithRetry(async () => {
@@ -72,7 +109,7 @@ export const getAIResponse = async (query: string, profile: UserProfile, options
 
         if (options.useThinking) {
             model = 'gemini-3-pro-preview';
-            config.thinkingConfig = { thinkingBudget: 32768 };
+            config.thinkingConfig = { thinkingBudget: 16000 };
         }
 
         if (options.useGrounding) {
@@ -89,7 +126,6 @@ export const getAIResponse = async (query: string, profile: UserProfile, options
         }
 
         const response = await ai.models.generateContent({ model, contents: query, config });
-
         return { 
             story: response.text,
             groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
@@ -97,24 +133,18 @@ export const getAIResponse = async (query: string, profile: UserProfile, options
     });
 };
 
-/**
- * AI Powered Input Suggestions
- */
-export const getSuggestions = async (input: string, type: 'city' | 'hotel' | 'flight'): Promise<string[]> => {
+export const translateText = async (text: string, targetLang: string, sourceLang?: string): Promise<string> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const sourceContext = sourceLang && sourceLang !== 'auto' ? ` from ${sourceLang}` : '';
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Give me 5 popular ${type} suggestions starting with or related to "${input}". Return as a simple comma-separated list. Ensure suggestions are global and relevant.`
+            contents: `Translate to ${targetLang}${sourceContext}: "${text}". Return only the translated text.`,
         });
-        const text = response.text || "";
-        return text.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        return response.text?.trim() || "";
     });
 };
 
-/**
- * Image Generation (Nano Banana Pro)
- */
 export const generateAIImage = async (prompt: string, aspectRatio: string, size: string): Promise<string> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -128,7 +158,6 @@ export const generateAIImage = async (prompt: string, aspectRatio: string, size:
                 }
             }
         });
-        
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
         }
@@ -136,9 +165,26 @@ export const generateAIImage = async (prompt: string, aspectRatio: string, size:
     });
 };
 
-/**
- * Image Editing (Gemini 2.5 Flash Image)
- */
+export const generateAIVideo = async (prompt: string, base64Image: string, mimeType: string, aspectRatio: '16:9' | '9:16'): Promise<string> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        let operation = await ai.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            prompt,
+            image: { imageBytes: base64Image.split(',')[1], mimeType },
+            config: { numberOfVideos: 1, resolution: '720p', aspectRatio }
+        });
+        while (!operation.done) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            operation = await ai.operations.getVideosOperation({ operation: operation });
+        }
+        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+        const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+    });
+};
+
 export const editAIImage = async (prompt: string, base64Image: string, mimeType: string): Promise<string> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -151,7 +197,6 @@ export const editAIImage = async (prompt: string, base64Image: string, mimeType:
                 ]
             }
         });
-        
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
         }
@@ -159,76 +204,28 @@ export const editAIImage = async (prompt: string, base64Image: string, mimeType:
     });
 };
 
-/**
- * Video Generation (Veo)
- */
-export const generateAIVideo = async (prompt: string, base64Image: string, mimeType: string, aspectRatio: '16:9' | '9:16'): Promise<string> => {
-    return callWithRetry(async () => {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        let operation = await ai.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
-            prompt,
-            image: { imageBytes: base64Image.split(',')[1], mimeType },
-            config: {
-                numberOfVideos: 1,
-                resolution: '720p',
-                aspectRatio
-            }
-        });
-
-        while (!operation.done) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            operation = await ai.operations.getVideosOperation({ operation: operation });
-        }
-
-        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-        const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-        const blob = await response.blob();
-        return URL.createObjectURL(blob);
-    });
-};
-
-/**
- * Audio Transcription
- */
-export const transcribeAudioFromBase64 = async (base64Audio: string, mimeType: string): Promise<string> => {
-    return callWithRetry(async () => {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: {
-                parts: [
-                    { inlineData: { data: base64Audio, mimeType } },
-                    { text: "Transcribe this audio exactly as spoken. If there are multiple speakers, identify them." }
-                ]
-            }
-        });
-        return response.text || "";
-    });
-};
-
-/**
- * Analyze Media (Image/Video Understanding)
- */
 export const analyzeMedia = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: {
-                parts: [
-                    { inlineData: { data: base64Data, mimeType } },
-                    { text: prompt }
-                ]
-            }
+            contents: { parts: [{ inlineData: { data: base64Data, mimeType } }, { text: prompt }] }
         });
         return response.text || "";
     });
 };
 
-/**
- * Live API Session Helper
- */
+export const transcribeAudioFromBase64 = async (base64Audio: string, mimeType: string): Promise<string> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: { parts: [{ inlineData: { data: base64Audio, mimeType } }, { text: "Transcribe exactly." }] }
+        });
+        return response.text || "";
+    });
+};
+
 export const connectLiveGuide = async (callbacks: any) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     return ai.live.connect({
@@ -236,17 +233,12 @@ export const connectLiveGuide = async (callbacks: any) => {
         callbacks,
         config: {
             responseModalities: [Modality.AUDIO],
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } }
-            },
-            systemInstruction: 'You are a cheerful Indian travel guide named Bharat. Speak warmly and suggest legendary vegetarian food and cultural landmarks. Keep your responses concise and conversational.'
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
+            systemInstruction: 'You are Bharat, a warm Indian guide. Help users find their path.'
         }
     });
 };
 
-/**
- * Text To Speech
- */
 export const generateSpeech = async (text: string): Promise<string> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -255,23 +247,17 @@ export const generateSpeech = async (text: string): Promise<string> => {
             contents: [{ parts: [{ text }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
-                speechConfig: {
-                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-                },
-            },
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+            }
         });
         return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
     });
 };
 
-/**
- * Audio Utilities
- */
 export const decodePCM = (base64: string) => {
     const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
     return bytes;
 };
 
@@ -296,11 +282,11 @@ export const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampl
 
 export const playRawPcm = async (base64Audio: string) => {
     if (!base64Audio) return;
-    const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    const audioBuffer = await decodeAudioData(decodePCM(base64Audio), outputAudioContext, 24000, 1);
-    const source = outputAudioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(outputAudioContext.destination);
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const buffer = await decodeAudioData(decodePCM(base64Audio), ctx, 24000, 1);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
     source.start();
 };
 
@@ -309,7 +295,7 @@ export const getPlaceInformation = async (placeName: string, profile: UserProfil
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Wisdom Hub: "${placeName}". Details about history, attractions, and local customs. Return JSON.`,
+            contents: `Wisdom Hub: Comprehensive data for the location: "${placeName}". Provide details about history, attractions, and local customs for this area, whether it is a global city or a remote village. Return JSON.`,
             config: {
                 systemInstruction: `${CORE_PERSONA}\n${getMetadataString(profile)}`,
                 responseMimeType: "application/json",
@@ -335,7 +321,6 @@ export const getRouteDetails = async (start: any, dest: string, preference: stri
             model: 'gemini-3-pro-preview',
             contents: `Plan ${preference} route from ${startStr} to ${dest}. Return JSON array of steps.`,
             config: {
-                thinkingConfig: { thinkingBudget: 32768 },
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,
@@ -358,10 +343,9 @@ export const getGlobalIntelligence = async (lat: number, lng: number, profile: U
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Analyze [${lat}, ${lng}]. Provide localized intel using Maps Grounding.`,
+            model: "gemini-3-flash-preview",
+            contents: `Analyze coordinates [${lat}, ${lng}]. Provide localized travel intelligence for essentials and safety.`,
             config: {
-                tools: [{ googleMaps: {} }],
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
@@ -397,15 +381,31 @@ export const getGlobalIntelligence = async (lat: number, lng: number, profile: U
     });
 };
 
-export const searchPlacesWithAI = async (query: string, profile: UserProfile): Promise<any> => {
+export const searchPlacesWithAI = async (query: string, profile: UserProfile, center?: { lat: number; lng: number }): Promise<any> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const config: any = { 
+            tools: [{ googleMaps: {} }] 
+        };
+        
+        if (center) {
+            config.toolConfig = {
+                retrievalConfig: {
+                    latLng: {
+                        latitude: center.lat,
+                        longitude: center.lng
+                    }
+                }
+            };
+        }
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: query,
-            config: { tools: [{ googleMaps: {} }] }
+            contents: `Global Search: Find places matching "${query}". Search worldwide for any city, village, landmark, or specific store. Use the googleMaps tool to provide precise results.`,
+            config
         });
-        const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[];
+        
+        const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as any[];
         const markers: MapMarker[] = [];
         groundingChunks.forEach((chunk, index) => {
             if (chunk.maps) {
@@ -419,22 +419,6 @@ export const searchPlacesWithAI = async (query: string, profile: UserProfile): P
     });
 };
 
-/**
- * Translates text with an optional source language.
- */
-export const translateText = async (text: string, targetLang: string, sourceLang?: string): Promise<string> => {
-    return callWithRetry(async () => {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const sourceContext = sourceLang && sourceLang !== 'auto' ? ` from ${sourceLang}` : '';
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Translate to ${targetLang}${sourceContext}: "${text}". Return only the translated text.`,
-        });
-        if (!response.text) throw new Error("Empty translation response.");
-        return response.text.trim();
-    });
-};
-
 export const getHotelSuggestions = async (loc: string, profile: UserProfile): Promise<any[]> => {
     const res = await getAIResponse(`Best vegetarian friendly hotels in ${loc}`, profile);
     return res.suggestions || [];
@@ -445,48 +429,27 @@ export const getItinerarySuggestions = async (bookings: Booking[], profile: User
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: `Suggest activities based on these bookings: ${JSON.stringify(bookings)}`,
-            config: { thinkingConfig: { thinkingBudget: 1000 }, responseMimeType: "application/json" }
+            contents: `Suggest 3 activities based on these bookings: ${JSON.stringify(bookings)}. Return JSON array of objects with "name" and "description".`,
+            config: { responseMimeType: "application/json" }
         });
         return JSON.parse(response.text || "[]");
     });
 };
 
-/**
- * Real-time Flight Status Interrogator
- */
-export const getFlightStatus = async (no: string, date: string): Promise<{ data: any; groundingChunks: GroundingChunk[] }> => {
+export const getFlightStatus = async (no: string, date: string): Promise<{ text: string; groundingChunks: GroundingChunk[] }> => {
     return callWithRetry(async () => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Find the real-time flight status for ${no} on ${date}. Return status, terminal, gate, estimatedDeparture, estimatedArrival, origin, and destination.`,
-            config: { 
-                tools: [{ googleSearch: {} }], 
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        status: { type: Type.STRING },
-                        terminal: { type: Type.STRING },
-                        gate: { type: Type.STRING },
-                        estimatedDeparture: { type: Type.STRING },
-                        estimatedArrival: { type: Type.STRING },
-                        origin: { type: Type.STRING },
-                        destination: { type: Type.STRING }
-                    }
-                }
-            }
+            contents: `Search for the real-time flight status of flight ${no} on ${date}. 
+            Provide a concise summary including current status (e.g. On-time, Delayed), Terminal, Gate, Estimated Departure Time, and Estimated Arrival Time. 
+            Format the answer clearly with labels.`,
+            config: { tools: [{ googleSearch: {} }] }
         });
-
-        try {
-            return {
-                data: JSON.parse(response.text || "{}"),
-                groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
-            };
-        } catch (e) {
-            return { data: {}, groundingChunks: [] };
-        }
+        return {
+            text: response.text || "No information found for this flight vector.",
+            groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
+        };
     });
 };
 
@@ -495,7 +458,7 @@ export const getUnifiedTransitStatus = async (id: string, profile: UserProfile):
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Live status for transit ${id}`,
+            contents: `Live status for transit ID ${id}`,
             config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
         });
         return JSON.parse(response.text || "{}");

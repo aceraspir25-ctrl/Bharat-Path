@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { generateAIImage, editAIImage, generateAIVideo, analyzeMedia, transcribeAudioFromBase64 } from '../../services/geminiService';
 import { useUser } from '../../contexts/UserContext';
@@ -25,8 +26,12 @@ const AIStudio: React.FC = () => {
     useEffect(() => {
         const checkKey = async () => {
             if (window.aistudio) {
-                const has = await window.aistudio.hasSelectedApiKey();
-                setHasApiKey(has);
+                try {
+                    const has = await window.aistudio.hasSelectedApiKey();
+                    setHasApiKey(has);
+                } catch (err) {
+                    setHasApiKey(false);
+                }
             }
         };
         checkKey();
@@ -45,6 +50,7 @@ const AIStudio: React.FC = () => {
     const handleSelectKey = async () => {
         if (window.aistudio) {
             await window.aistudio.openSelectKey();
+            // Mitigate race condition: assume successful selection
             setHasApiKey(true);
         }
     };
@@ -81,7 +87,7 @@ const AIStudio: React.FC = () => {
             recorder.start();
             setIsRecording(true);
         } catch (err) {
-            alert("Microphone access required.");
+            alert("Microphone access required for transcription protocol.");
         }
     };
 
@@ -91,6 +97,7 @@ const AIStudio: React.FC = () => {
     };
 
     const runStudio = async () => {
+        // High-performance features check
         if ((mode === 'generate' || mode === 'animate') && !hasApiKey) {
             await handleSelectKey();
             return;
@@ -112,11 +119,14 @@ const AIStudio: React.FC = () => {
                 setOutput(res);
             }
         } catch (err: any) {
-            if (err.message.includes("Requested entity was not found")) {
+            // Protocol-mandated error recovery for API key issues
+            if (err.message?.includes("Requested entity was not found")) {
                 setHasApiKey(false);
-                alert("Please select a valid API key again.");
+                alert("API Key verification failed. Please re-authorize the premium uplink.");
+                await handleSelectKey();
             } else {
-                alert(err.message);
+                console.error("Studio protocol error:", err);
+                alert(err.message || "Synthesis failed. Please verify prompt and source material.");
             }
         } finally {
             setLoading(false);
@@ -133,9 +143,10 @@ const AIStudio: React.FC = () => {
                 {!hasApiKey && (mode === 'generate' || mode === 'animate') && (
                     <button 
                         onClick={handleSelectKey}
-                        className="bg-red-500/20 text-red-500 border border-red-500/30 px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-pulse"
+                        className="bg-red-500/20 text-red-500 border border-red-500/30 px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center gap-2"
                     >
-                        Action Required: Select API Key
+                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                        Premium Access Required
                     </button>
                 )}
             </header>

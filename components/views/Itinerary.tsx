@@ -4,7 +4,6 @@ import useLocalStorage from '../../hooks/useLocalStorage';
 import { Booking, AIActivitySuggestion, TripDetails, Notification } from '../../types';
 import { ItineraryIcon, BellIcon, BellIconSolid } from '../icons/Icons';
 import { getItinerarySuggestions } from '../../services/geminiService';
-// Added useUser import
 import { useUser } from '../../contexts/UserContext';
 
 interface ItineraryItemProps {
@@ -75,7 +74,6 @@ const AISuggestions: React.FC<{
     bookings: Booking[]; 
     onAddSuggestion: (booking: Booking) => void; 
 }> = ({ bookings, onAddSuggestion }) => {
-    // Added profile from context
     const { profile } = useUser();
     const [suggestions, setSuggestions] = useState<AIActivitySuggestion[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +83,6 @@ const AISuggestions: React.FC<{
         setIsLoading(true);
         setError(null);
         try {
-            // Fixed: Pass profile to getItinerarySuggestions
             const result = await getItinerarySuggestions(bookings, profile);
             setSuggestions(result);
         } catch (err: any) {
@@ -243,7 +240,6 @@ const Itinerary: React.FC<{ onNotify?: (n: Omit<Notification, 'id' | 'timestamp'
     }
   };
 
-  // Separate bookings into those within the journey range and those outside (Vault)
   const { filteredBookings, otherBookings } = useMemo(() => {
     const sorted = [...bookings].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -276,7 +272,6 @@ const Itinerary: React.FC<{ onNotify?: (n: Omit<Notification, 'id' | 'timestamp'
       <TripDurationManager />
 
       <div className="space-y-12">
-          {/* Main Journey Section */}
           <section className="space-y-6">
               <div className="flex items-center gap-4 px-2">
                   <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em]">Active Journey Nodes</h2>
@@ -300,7 +295,6 @@ const Itinerary: React.FC<{ onNotify?: (n: Omit<Notification, 'id' | 'timestamp'
               )}
           </section>
 
-          {/* Out of Range / Vault Section */}
           {otherBookings.length > 0 && (
               <section className="space-y-6 pt-6">
                   <div className="flex items-center gap-4 px-2">

@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearch } from '../contexts/SearchContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import useLocalStorage from '../hooks/useLocalStorage';
+import { useUser } from '../contexts/UserContext';
 import { SearchIcon, MoonIcon, SunIcon, MicrophoneIcon, GlobeIcon, BellIcon, LogoutIcon } from './icons/Icons';
 import { View, Notification } from '../types';
 
@@ -51,9 +50,10 @@ const NotificationItem: React.FC<{ notification: Notification }> = ({ notificati
 const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, toggleTheme, notifications, onMarkRead, onLogout }) => {
     const { searchQuery, setSearchQuery, performSearch, loading } = useSearch();
     const { language } = useLanguage();
-    const [profilePic] = useLocalStorage<string | null>('userProfilePic', null);
-    const [userName] = useLocalStorage<string>('userProfileName', 'Explorer');
+    const { profile } = useUser();
+    
     const [isListening, setIsListening] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const recognitionRef = useRef<any>(null);
@@ -62,7 +62,22 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const handleExecuteSearch = () => {
+    // Real-time search action with debouncing
+    useEffect(() => {
+        if (!searchQuery.trim() || !isFocused) return;
+
+        const timer = setTimeout(() => {
+            if (searchQuery.length > 3) {
+                performSearch(searchQuery);
+                // We stay in current view unless explicit submit, but results sync in background
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, performSearch, isFocused]);
+
+    const handleExecuteSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+        if (e) e.preventDefault();
         if (searchQuery.trim()) {
             performSearch(searchQuery);
             setActiveView(View.Dashboard);
@@ -123,6 +138,7 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
         <header className="flex items-center justify-between p-4 bg-[#FF9933] border-b border-orange-600/20 shadow-lg sticky top-0 z-20">
             <div className="flex items-center">
                 <button 
+                    type="button"
                     onClick={() => setSidebarOpen(true)} 
                     className="text-[#111222] focus:outline-none md:hidden mr-4 hover:opacity-70 transition-opacity"
                     aria-label="Open sidebar"
@@ -133,57 +149,64 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                 </button>
             </div>
 
-            <div className="flex-1 flex items-center justify-center px-4 max-w-2xl mx-auto gap-3">
-                <div className="flex-1 relative group">
+            <form 
+                onSubmit={handleExecuteSearch}
+                className="flex-1 flex items-center justify-center px-4 max-w-2xl mx-auto gap-3"
+            >
+                <div className={`flex-1 relative group transition-all duration-300 ${isFocused ? 'scale-[1.02]' : ''}`}>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleExecuteSearch()}
-                        placeholder={isListening ? "Listening..." : "Search places, stories, hotels..."}
-                        className={`w-full pl-12 pr-12 py-2.5 bg-white border-none text-[#111222] rounded-2xl focus:ring-2 focus:ring-[#111222]/20 placeholder-gray-400 transition-all font-bold shadow-inner ${
-                            isListening || loading ? 'ring-2 ring-white/50 animate-pulse' : ''
+                        onKeyDown={(e) => e.key === 'Enter' && handleExecuteSearch(e)}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        placeholder={isListening ? "Listening to your path..." : "Search places, stories, hotels..."}
+                        className={`w-full pl-12 pr-12 py-2.5 bg-white border-none text-[#111222] rounded-2xl focus:ring-4 focus:ring-white/40 placeholder-gray-400 transition-all font-bold shadow-inner ${
+                            isListening || loading ? 'ring-2 ring-white/50' : ''
                         }`}
                     />
                     <button 
-                        onClick={handleExecuteSearch}
-                        className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 hover:text-[#FF9933] transition-colors"
+                        type="submit"
+                        className={`absolute inset-y-0 left-0 flex items-center pl-4 transition-colors z-10 ${isFocused ? 'text-orange-500' : 'text-gray-400'}`}
                         title="Start Search"
                     >
-                      <SearchIcon />
+                      <SearchIcon className="w-5 h-5" />
                     </button>
                     {loading && (
                         <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                            <div className="w-4 h-4 border-2 border-[#FF9933]/20 border-t-[#FF9933] rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
                         </div>
                     )}
                 </div>
                 <button 
+                    type="button"
                     onClick={handleVoiceInput} 
                     title={isListening ? "Stop listening" : "Search with voice"}
                     className={`p-3 rounded-2xl transition-all shadow-lg flex items-center justify-center ${
                         isListening 
-                        ? 'bg-[#111222] text-white animate-bounce' 
+                        ? 'bg-[#111222] text-white animate-pulse' 
                         : 'bg-white text-[#FF9933] hover:bg-[#111222] hover:text-white'
                     }`}
                 >
-                    <MicrophoneIcon />
+                    < MicrophoneIcon className="w-5 h-5" />
                 </button>
-            </div>
+            </form>
             
             <div className="flex items-center space-x-6 pr-4">
                  <div className="hidden lg:flex items-center gap-2 text-[#111222]">
-                    <GlobeIcon />
+                    <GlobeIcon className="w-5 h-5" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{language === 'hi' ? 'Hindi' : 'English'}</span>
                 </div>
 
                 <div className="relative" ref={notificationRef}>
                     <button 
+                        type="button"
                         onClick={() => { setShowNotifications(!showNotifications); if(!showNotifications) onMarkRead(); }}
                         className={`text-[#111222] hover:opacity-70 transition-all relative p-2 rounded-xl ${showNotifications ? 'bg-white/20' : ''}`} 
                         aria-label="Notifications"
                     >
-                        <BellIcon />
+                        <BellIcon className="w-6 h-6" />
                         {unreadCount > 0 && (
                             <span className="absolute top-1 right-1 w-4 h-4 bg-[#111222] text-[#FF9933] text-[8px] font-black flex items-center justify-center rounded-full border-2 border-[#FF9933]">
                                 {unreadCount}
@@ -210,8 +233,8 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                     )}
                 </div>
 
-                 <button onClick={toggleTheme} className="text-[#111222] hover:opacity-70 transition-colors" aria-label="Toggle theme">
-                    {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+                 <button type="button" onClick={toggleTheme} className="text-[#111222] hover:opacity-70 transition-colors" aria-label="Toggle theme">
+                    {theme === 'dark' ? <SunIcon className="w-6 h-6" /> : <MoonIcon className="w-6 h-6" />}
                 </button>
 
                 <div className="relative" ref={profileRef}>
@@ -221,7 +244,7 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                         title="User Profile"
                     >
                         <img 
-                            src={profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"} 
+                            src={profile.profilePic || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"} 
                             alt="User Profile" 
                             className="w-full h-full object-cover" 
                         />
@@ -230,11 +253,12 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                     {showProfileMenu && (
                         <div className="absolute right-0 mt-3 w-56 bg-[#1a1c2e] rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-fadeIn p-2 z-50">
                             <div className="px-4 py-3 border-b border-white/5 mb-2">
-                                <p className="text-[11px] font-black text-white uppercase tracking-tight line-clamp-1">{userName}</p>
+                                <p className="text-[11px] font-black text-white uppercase tracking-tight line-clamp-1">{profile.name}</p>
                                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Global Explorer</p>
                             </div>
                             
                             <button 
+                                type="button"
                                 onClick={() => { setActiveView(View.Community); setShowProfileMenu(false); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 rounded-2xl transition-all uppercase tracking-widest"
                             >
@@ -242,7 +266,8 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                             </button>
                             
                             <button 
-                                onClick={() => { setActiveView(View.Utilities); setShowProfileMenu(false); }}
+                                type="button"
+                                onClick={() => { setActiveView(View.Settings); setShowProfileMenu(false); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/5 rounded-2xl transition-all uppercase tracking-widest"
                             >
                                 <span className="text-base">⚙️</span> Settings
@@ -251,6 +276,7 @@ const Header: React.FC<HeaderProps> = ({ setSidebarOpen, setActiveView, theme, t
                             <div className="h-px bg-white/5 my-2 mx-2"></div>
                             
                             <button 
+                                type="button"
                                 onClick={() => { onLogout(); setShowProfileMenu(false); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-orange-500 hover:text-white hover:bg-orange-500 transition-all rounded-2xl uppercase tracking-widest"
                             >

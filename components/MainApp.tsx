@@ -23,6 +23,7 @@ import GroupPlanning from './views/GroupPlanning';
 import Subscription from './views/Subscription';
 import AIStudio from './views/AIStudio';
 import LiveGuide from './views/LiveGuide';
+import Settings from './views/Settings';
 import { useUser } from '../contexts/UserContext';
 import AIChatbot from './AIChatbot';
 
@@ -119,10 +120,12 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
         return <TimePass />;
       case View.AppDetail:
         return <AppDetail />;
+      case View.Settings:
+        return <Settings toggleTheme={toggleTheme} />;
       default:
         return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
     }
-  }, [activeView, addNotification, setActiveView, handleAIService]);
+  }, [activeView, addNotification, setActiveView, handleAIService, toggleTheme]);
 
   return (
     <div className="flex h-screen bg-[#0F111A]">

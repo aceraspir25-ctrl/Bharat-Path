@@ -19,7 +19,8 @@ export enum View {
   TimePass = 'TimePass',
   AppDetail = 'AppDetail',
   AIStudio = 'AIStudio',
-  LiveGuide = 'LiveGuide'
+  LiveGuide = 'LiveGuide',
+  Settings = 'Settings'
 }
 
 export interface UserMemory {
@@ -86,6 +87,12 @@ export interface AIBookingSuggestion {
     type: 'Hotel' | 'Restaurant';
     description: string;
     rating: number;
+}
+
+export interface SearchSuggestion {
+    name: string;
+    type: string;
+    local_veg_specialty: string;
 }
 
 export interface GroundingChunk {
@@ -242,7 +249,6 @@ export interface TransitStatus {
 
 // Ambient declaration for the Google Identity Services library
 declare global {
-    // Fix: Moved AIStudio interface inside declare global to ensure it refers to the same type as the environment-provided one
     interface AIStudio {
         hasSelectedApiKey: () => Promise<boolean>;
         openSelectKey: () => Promise<void>;
@@ -268,7 +274,6 @@ declare global {
                 };
             };
         };
-        // Fixed: Use named type AIStudio and mark as optional to ensure compatibility with environment modifiers
         aistudio?: AIStudio;
         L?: any;
     }
