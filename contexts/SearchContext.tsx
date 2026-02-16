@@ -1,9 +1,13 @@
-
 import React, { createContext, useState, useContext, useCallback, ReactNode } from 'react';
 import { getAIResponse } from '../services/geminiService';
 import { AIResponse } from '../types';
-// Added useUser import
 import { useUser } from './UserContext';
+
+export interface SearchFilters {
+  category: 'All' | 'Hotel' | 'Restaurant';
+  minRating: number;
+  date: string;
+}
 
 interface SearchContextType {
   searchQuery: string;
@@ -14,6 +18,8 @@ interface SearchContextType {
   setLoading: (loading: boolean) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  filters: SearchFilters;
+  setFilters: (filters: SearchFilters) => void;
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
 }
@@ -25,7 +31,12 @@ export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [searchResults, setSearchResults] = useState<AIResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Added profile from context
+  const [filters, setFilters] = useState<SearchFilters>({
+    category: 'All',
+    minRating: 0,
+    date: ''
+  });
+  
   const { profile } = useUser();
 
   const clearSearch = useCallback(() => {
@@ -43,16 +54,18 @@ export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setSearchResults(null);
 
     try {
-      // Fixed: Pass profile to getAIResponse
-      const response = await getAIResponse(query, profile);
+      // We pass filters as context to the AI to improve the initial "story" and "suggestions"
+      const filterContext = `[Context: Filter by ${filters.category}, min rating ${filters.minRating}${filters.date ? `, for date ${filters.date}` : ''}]`;
+      const enrichedQuery = `${filterContext} ${query}`;
+      
+      const response = await getAIResponse(enrichedQuery, profile);
       setSearchResults(response);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred during the search.");
     } finally {
       setLoading(false);
     }
-    // Added profile to dependencies
-  }, [profile]);
+  }, [profile, filters]);
 
   const value = {
     searchQuery,
@@ -63,6 +76,8 @@ export const SearchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setLoading,
     error,
     setError,
+    filters,
+    setFilters,
     performSearch,
     clearSearch
   };

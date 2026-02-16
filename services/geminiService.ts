@@ -124,7 +124,7 @@ export const translateText = async (text: string, targetLang: string, sourceLang
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = sourceLang && sourceLang !== 'auto' 
         ? `Translate from ${sourceLang} to ${targetLang}: "${text}". Return only the result.`
-        : `Translate to ${targetLang}: "${text}". Return only the result.`;
+        : `Translate to ${targetLang}: "${text}". Return only the result.`
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
@@ -204,25 +204,53 @@ export const getPlaceInformation = async (placeName: string, profile: UserProfil
 export const getRouteDetails = async (start: any, dest: string, preference: string, profile: UserProfile, options: any): Promise<RouteDetails> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const startStr = start.lat ? `${start.lat},${start.lon}` : start;
+    
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Generate a ${preference} route from ${startStr} to ${dest}. Return steps as JSON array.`,
+        contents: `Act as a Master Path Architect for 'Bharat Path'. Synthesize a specialized ${preference} route from "${startStr}" to "${dest}".
+        
+        Strategy Requirements:
+        - If 'fastest': Prioritize high-velocity corridors, expressways, and time optimization.
+        - If 'scenic': Prioritize natural aesthetic, river crossings, mountain views, and visually iconic path nodes.
+        - If 'cultural': Prioritize spiritual hubs, ancient temples, UNESCO heritage, local bazaars, and historic neighborhoods.
+        
+        Modifiers:
+        - Avoid Tolls: ${options.avoidTolls}
+        - High Heritage Focus: ${options.historicalFocus}
+        
+        User Explorer Metadata:
+        - Name: ${profile.name}
+        - Interests: ${profile.memory.interests.join(', ')}
+        
+        Return the result in strict JSON format.`,
         config: {
+            thinkingConfig: { thinkingBudget: 8000 },
             responseMimeType: "application/json",
             responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        instruction: { type: Type.STRING },
-                        distance: { type: Type.STRING },
-                        duration: { type: Type.STRING }
+                type: Type.OBJECT,
+                properties: {
+                    summary: { type: Type.STRING, description: "A poetic and technical summary of why this path matches the protocol." },
+                    totalDistance: { type: Type.STRING },
+                    totalDuration: { type: Type.STRING },
+                    culturalNodesCount: { type: Type.NUMBER },
+                    steps: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                instruction: { type: Type.STRING },
+                                distance: { type: Type.STRING },
+                                duration: { type: Type.STRING }
+                            },
+                            required: ["instruction", "distance", "duration"]
+                        }
                     }
-                }
+                },
+                required: ["summary", "totalDistance", "totalDuration", "steps"]
             }
         }
     });
-    return JSON.parse(response.text || "[]");
+    return JSON.parse(response.text || "{}");
 };
 
 export const getGlobalIntelligence = async (lat: number, lng: number, profile: UserProfile): Promise<GlobalIntelligence> => {

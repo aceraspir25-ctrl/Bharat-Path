@@ -39,7 +39,7 @@ const IntelligenceCard: React.FC<{ title: string; items: any[]; icon: string; co
 );
 
 const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (fn: () => Promise<any>) => Promise<any> }> = ({ setActiveView, onAIService }) => {
-  const { searchQuery, setSearchQuery, searchResults, performSearch, loading, error } = useSearch();
+  const { searchQuery, setSearchQuery, searchResults, performSearch, loading, error, filters } = useSearch();
   const { profile } = useUser();
   const [expenses] = useLocalStorage<Expense[]>('expenses', []);
   const [tripDetails] = useLocalStorage<TripDetails | null>('tripDetails', null);
@@ -111,6 +111,16 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
         await playRawPcm(audioBase64);
     } catch (err) {} finally { setIsSpeaking(false); }
   };
+
+  // --- FILTER LOGIC FOR SUGGESTIONS --- //
+  const filteredAISuggestions = useMemo(() => {
+      if (!searchResults?.suggestions) return [];
+      return searchResults.suggestions.filter(s => {
+          const matchesCategory = filters.category === 'All' || s.type === filters.category;
+          const matchesRating = s.rating >= filters.minRating;
+          return matchesCategory && matchesRating;
+      });
+  }, [searchResults, filters]);
 
   const totalSpent = useMemo(() => expenses.reduce((acc, curr) => acc + curr.amount, 0), [expenses]);
   const budgetProgress = Math.min((totalSpent / 50000) * 100, 100);
@@ -331,18 +341,25 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
                         </div>
                      )}
                      
-                     {searchResults?.suggestions && searchResults.suggestions.length > 0 && (
+                     {filteredAISuggestions.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
-                            {searchResults.suggestions.map((s, idx) => (
+                            {filteredAISuggestions.map((s, idx) => (
                                 <div key={idx} className="p-8 bg-white dark:bg-white/5 rounded-[2.5rem] border border-gray-100 dark:border-white/10 shadow-xl group/card hover:border-orange-500/50 transition-all">
                                     <div className="flex justify-between items-start mb-4">
-                                        <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight text-lg group-hover/card:text-orange-500 transition-colors">{s.name}</h4>
+                                        <div className="space-y-1">
+                                            <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight text-lg group/card:text-orange-500 transition-colors">{s.name}</h4>
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{s.type}</p>
+                                        </div>
                                         <span className="text-[10px] font-black text-orange-500 px-3 py-1 bg-orange-500/10 rounded-xl border border-orange-500/20">{s.rating} ★</span>
                                     </div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed italic line-clamp-3">"{s.description}"</p>
                                     <button className="mt-6 text-[9px] font-black uppercase tracking-[0.4em] text-gray-400 group-hover/card:text-orange-500 transition-all flex items-center gap-2">INTERROGATE NODE <span className="text-sm">➔</span></button>
                                 </div>
                             ))}
+                        </div>
+                     ) : searchResults?.suggestions && searchResults.suggestions.length > 0 && (
+                        <div className="py-12 text-center opacity-30">
+                            <p className="text-xs font-black uppercase tracking-widest">No establishments match active protocols.</p>
                         </div>
                      )}
                   </div>
@@ -409,6 +426,7 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
 
       </div>
       <style>{`
+        @keyframes rotate-bg { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseScale { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }

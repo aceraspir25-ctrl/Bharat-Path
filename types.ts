@@ -1,4 +1,3 @@
-
 export enum View {
   Dashboard = 'Dashboard',
   Map = 'Map',
@@ -138,7 +137,13 @@ export interface RouteStep {
   duration: string;
 }
 
-export type RouteDetails = RouteStep[];
+export interface RouteDetails {
+  summary: string;
+  steps: RouteStep[];
+  totalDistance: string;
+  totalDuration: string;
+  culturalNodesCount?: number;
+}
 
 export interface Post {
   id: string;
