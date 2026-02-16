@@ -132,20 +132,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onBack }) => {
 
         <div className="space-y-4">
           <div ref={googleButtonRef} className="w-full overflow-hidden rounded-xl"></div>
-          <button className="w-full py-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">
+          <button type="button" className="w-full py-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">
             <MicrosoftIcon className="w-4 h-4" /> Microsoft Azure
           </button>
         </div>
 
         <div className="mt-10 text-center space-y-4">
           <button 
+            type="button"
             onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
             className="text-[10px] font-black text-gray-500 hover:text-orange-500 uppercase tracking-widest transition-colors"
           >
             {mode === 'login' ? "Need a new identity? Registry here" : "Already in registry? Login"}
           </button>
           <br />
-          <button onClick={onBack} className="text-[10px] font-black text-gray-700 uppercase tracking-widest hover:text-white transition-colors">
+          <button type="button" onClick={onBack} className="text-[10px] font-black text-gray-700 uppercase tracking-widest hover:text-white transition-colors">
             ← Back to Entry Node
           </button>
         </div>
