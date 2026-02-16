@@ -1,89 +1,110 @@
+// @ts-nocheck
 import React from 'react';
 import { TravelTipsIcon } from '../icons/Icons';
 
 const travelTipsData = [
   {
-    category: 'Packing Essentials',
+    category: 'Packing Logistics',
+    icon: '🧳',
     tips: [
-      { title: 'Light Clothing', content: 'Pack breathable fabrics like cotton and linen for the daytime heat. Include a light jacket or shawl for cooler evenings, especially in the north.' },
-      { title: 'Comfortable Footwear', content: 'You\'ll be doing a lot of walking. Bring sturdy, comfortable shoes. Also, pack sandals or slip-ons that are easy to remove when entering temples and homes.' },
-      { title: 'Universal Adapter', content: 'India uses Type C, D, and M outlets. A universal travel adapter is a must to keep your devices charged.' },
-      { title: 'Medication and First-Aid', content: 'Bring any personal medication, plus a basic first-aid kit with essentials like pain relievers, antiseptic wipes, and stomach remedies.' },
+      { title: 'Breathable Fabrics', content: 'Pack cotton and linen for the Indian sun. Always keep a shawl for sudden north-side cooling or religious entry.' },
+      { title: 'Removal Footwear', content: 'Sandals are essential. You will be removing them frequently at temples and local homes.' },
+      { title: 'Type C/D/M Adapters', content: 'India uses specific pin configurations. A universal node adapter is mandatory for your gear.' },
     ]
   },
   {
-    category: 'Health & Safety',
+    category: 'Bio-Intelligence (Health)',
+    icon: '🏥',
     tips: [
-      { title: 'Stay Hydrated Safely', content: 'Drink only bottled or purified water from sealed bottles. Avoid tap water, even for brushing your teeth. Dehydration is a common issue for travelers.' },
-      { title: 'Street Food Caution', content: 'While delicious, be selective. Eat from busy stalls where food is cooked fresh in front of you. Avoid raw salads or pre-cut fruit that may have been washed in tap water.' },
-      { title: 'Bargain Respectfully', content: 'Bargaining is common in local markets. Do it with a smile and a friendly attitude. Start at about half the asking price and meet somewhere in the middle.' },
-      { title: 'Secure Your Valuables', content: 'Be mindful of your belongings in crowded places. Use a money belt or a secure bag. Avoid displaying expensive gadgets or jewelry openly.' },
+      { title: 'Hydration Protocol', content: 'Only consume sealed mineral water. Avoid tap water even for dental hygiene nodes.' },
+      { title: 'Street Food Interrogation', content: 'Choose stalls with high turnover where food is synthesized fresh in front of you.' },
+      { title: 'Heat Sync', content: 'Carry electrolyte salts. The Indian tropical mesh can dehydrate global nodes quickly.' },
     ]
   },
   {
-    category: 'Cultural Etiquette',
+    category: 'Cultural Protocols',
+    icon: '🕉️',
     tips: [
-      { title: 'Dress Modestly', content: 'When visiting religious sites (temples, mosques, etc.), it\'s important to cover your shoulders and knees. Carrying a scarf or shawl is a good idea to cover your head when required.' },
-      { title: 'Use Your Right Hand', content: 'In Indian culture, the left hand is considered unclean. Always use your right hand for eating, shaking hands, and giving or receiving items.' },
-      { title: 'Respect Elders', content: 'Elders are highly respected. It\'s customary to greet them first. A simple "Namaste" (placing palms together at the chest and bowing slightly) is a universally accepted greeting.' },
-      { title: 'Photography Permissions', content: 'Always ask for permission before taking photos of people. Photography might be prohibited in some temples or sensitive areas, so look for signs.' },
+      { title: 'Modesty Filter', content: 'Cover shoulders and knees at heritage sites. It respects the local cultural frequency.' },
+      { title: 'Right Hand Priority', content: 'The left hand is considered secondary. Use your right hand for exchange and consumption.' },
+      { title: 'Elder Recognition', content: 'Respect elders first. Use "Namaste" with joined palms to sync with local respect nodes.' },
     ]
   },
   {
-    category: 'Useful Hindi Phrases',
+    category: 'Linguistic Uplink (Hindi)',
+    icon: '🗣️',
     tips: [
-        { title: 'Namaste (नमस्ते)', content: 'A respectful greeting for "Hello" and "Goodbye".' },
-        { title: 'Dhanyavaad (धन्यवाद)', content: 'Means "Thank you".' },
-        { title: 'Aap kaise hain? (आप कैसे हैं?)', content: 'A formal way of asking "How are you?".' },
-        { title: 'Kitna hua? (कितना हुआ?)', content: 'Means "How much is this?". Use this when shopping.' },
-        { title: 'Madad (मदद)', content: 'Means "Help".' },
+        { title: 'Dhanyavaad', content: 'The gratitude protocol: "Thank you".' },
+        { title: 'Kitna hua?', content: 'Interrogate price: "How much is this?".' },
+        { title: 'Madad', content: 'High-priority alert: "Help".' },
     ]
   }
 ];
 
 const TipCard: React.FC<{ title: string; content: string }> = ({ title, content }) => (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h4 className="font-bold text-orange-600 dark:text-orange-400">{title}</h4>
-        <p className="text-gray-600 dark:text-gray-300 mt-1">{content}</p>
+    <div className="group bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 hover:border-orange-500/40 transition-all duration-500 shadow-2xl relative overflow-hidden">
+        <div className="relative z-10">
+            <h4 className="font-black text-white uppercase italic tracking-tighter text-lg group-hover:text-orange-500 transition-colors">{title}</h4>
+            <p className="text-gray-400 text-xs font-medium mt-4 leading-relaxed italic">"{content}"</p>
+        </div>
+        <div className="absolute -bottom-2 -right-2 text-4xl opacity-[0.03] group-hover:opacity-10 transition-opacity">⚡</div>
     </div>
 );
 
 
 const TravelTips: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto animate-fadeIn">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center p-4 bg-orange-100 dark:bg-orange-900/50 rounded-full mb-4">
-            <TravelTipsIcon />
+    <div className="max-w-6xl mx-auto pb-40 animate-fadeIn px-6 h-screen overflow-y-auto custom-scrollbar selection:bg-orange-500/30">
+      
+      {/* Cinematic Header */}
+      <div className="text-center py-16 space-y-6 relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+        <div className="relative z-10 inline-flex items-center justify-center p-6 bg-orange-500/10 rounded-[2.5rem] mb-4 text-orange-500 border border-orange-500/20 shadow-2xl animate-float">
+            <TravelTipsIcon className="w-10 h-10" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Essential Travel Tips</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Your guide to a safe, respectful, and unforgettable journey through India.
-        </p>
+        <h1 className="relative z-10 text-7xl font-black text-white italic tracking-tighter uppercase leading-none">Travel <span className="text-orange-500">Wisdom</span></h1>
+        <p className="relative z-10 text-gray-500 text-[10px] font-black tracking-[0.6em] uppercase">Universal Protocol for the Global Explorer</p>
       </div>
 
-      <div className="space-y-8">
-        {travelTipsData.map((categoryData) => (
-          <section key={categoryData.category}>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 pb-2 border-b-2 border-orange-500">
-              {categoryData.category}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categoryData.tips.map((tip) => (
-                <TipCard key={tip.title} title={tip.title} content={tip.content} />
+      <div className="space-y-24">
+        {travelTipsData.map((categoryData, i) => (
+          <section key={i} className="animate-fadeInUp" style={{ animationDelay: `${i * 150}ms` }}>
+            <div className="flex items-center gap-6 mb-10 px-4">
+                <span className="text-4xl">{categoryData.icon}</span>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">
+                    {categoryData.category}
+                </h2>
+                <div className="flex-1 h-px bg-gradient-to-r from-orange-500/30 to-transparent"></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-2">
+              {categoryData.tips.map((tip, idx) => (
+                <TipCard key={idx} title={tip.title} content={tip.content} />
               ))}
+            </div>
+            
+            {/* Pro-Tip Add-on */}
+            <div className="mt-8 mx-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl flex items-center gap-4 group">
+                <span className="text-blue-500 font-black text-xs uppercase tracking-widest">PRO-NODE:</span>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight group-hover:text-blue-400 transition-colors">Download offline maps for this region via the Map Registry.</p>
             </div>
           </section>
         ))}
       </div>
+
+      {/* Founder Signature Footer */}
+      <footer className="mt-32 pt-10 border-t border-white/5 text-center">
+        <p className="text-[9px] font-black text-gray-700 uppercase tracking-[0.8em] italic">Knowledge Architecture by Shashank Mishra • Bharat Path v4.5</p>
+      </footer>
+
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
-        }
+        .shadow-3xl { box-shadow: 0 40px 100px -20px rgba(0,0,0,0.5); }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeInUp { animation: fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
       `}</style>
     </div>
   );

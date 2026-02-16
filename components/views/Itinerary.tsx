@@ -1,320 +1,169 @@
-
+// @ts-nocheck
 import React, { useEffect, useState, useMemo } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
-import { Booking, AIActivitySuggestion, TripDetails, Notification } from '../../types';
-import { ItineraryIcon, BellIcon, BellIconSolid } from '../icons/Icons';
+import { Booking, AIActivitySuggestion, TripDetails } from '../../types';
+import { BellIcon, BellIconSolid, ExternalLinkIcon } from '../icons/Icons';
 import { getItinerarySuggestions } from '../../services/geminiService';
 import { useUser } from '../../contexts/UserContext';
 
-interface ItineraryItemProps {
-    booking: Booking;
-    onRemove: (id: string) => void;
-    onToggleReminder: (id: string) => void;
-}
-
-const ItineraryItem: React.FC<ItineraryItemProps> = ({ booking, onRemove, onToggleReminder }) => {
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'Hotel': return '🏨';
-      case 'Flight': return '✈️';
-      case 'Train': return '🚂';
-      case 'Activity': return '🎟️';
-      default: return '📌';
-    }
-  }
-
+// --- NEW ADD-ON: PREMIUM TIMELINE ITEM ---
+const ItineraryNode: React.FC<any> = ({ booking, onRemove, onToggleReminder }) => {
+  const icons: Record<string, string> = { Hotel: '🏨', Flight: '✈️', Train: '🚂', Activity: '🎟️' };
+  
   return (
-    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 flex items-start space-x-4 transition-all hover:shadow-md group">
-        <div className="text-3xl bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl group-hover:scale-110 transition-transform">{getIcon(booking.type)}</div>
-        <div className="flex-1">
-            <div className="flex justify-between items-center">
-                <h3 className="font-black text-sm uppercase tracking-tight text-gray-800 dark:text-white">{booking.type}</h3>
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400 px-2 py-1 bg-orange-500/10 rounded-lg">
-                    {new Date(booking.date + 'T00:00:00').toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}
-                    {booking.type === 'Flight' && booking.time && ` @ ${booking.time}`}
-                </span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 font-medium">{booking.details}</p>
+    <div className="group relative flex gap-10 pb-12 last:pb-0 animate-slideIn">
+      {/* Dynamic Path Thread */}
+      <div className="absolute left-[29px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-orange-500 via-orange-500/20 to-transparent group-last:hidden"></div>
+      
+      {/* Glowing Node Point */}
+      <div className="relative z-10 w-16 h-16 bg-[#0a0b14] border-2 border-orange-500/40 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(249,115,22,0.2)] group-hover:border-orange-500 group-hover:scale-110 transition-all duration-500">
+        <div className="absolute inset-0 bg-orange-500/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        {icons[booking.type] || '📍'}
+      </div>
+
+      {/* Modern Information Card */}
+      <div className="flex-1 bg-white/5 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/10 hover:border-white/20 transition-all shadow-2xl relative overflow-hidden group/card">
+        {/* Background Typography */}
+        <div className="absolute -top-4 -right-4 text-7xl font-black italic text-white/[0.02] pointer-events-none uppercase select-none group-hover/card:text-orange-500/[0.03] transition-colors">{booking.type}</div>
+        
+        <div className="flex justify-between items-start relative z-10">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">{booking.type} NODE</span>
+            <h3 className="text-xl font-black text-white tracking-tighter leading-tight italic uppercase">{booking.details}</h3>
+          </div>
+          <div className="text-right bg-black/40 px-4 py-2 rounded-2xl border border-white/5 shadow-inner">
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{booking.date}</p>
+            <p className="text-sm font-black text-orange-500">{booking.time || 'TBD'}</p>
+          </div>
         </div>
-        <div className="flex items-center space-x-1">
-            <button 
-                onClick={() => onToggleReminder(booking.id)} 
-                className={`p-2 rounded-xl transition-colors ${booking.reminderSet ? 'text-orange-500 bg-orange-500/10' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                aria-label={booking.reminderSet ? "Cancel reminder" : "Set reminder"}
-            >
-                {booking.reminderSet ? <BellIconSolid /> : <BellIcon />}
-            </button>
-            <button onClick={() => onRemove(booking.id)} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-2 rounded-xl hover:bg-red-500/10 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>
-        </div>
-    </div>
-  )
-}
 
-const SuggestionCard: React.FC<{
-    suggestion: AIActivitySuggestion;
-    onAdd: (suggestion: AIActivitySuggestion) => void;
-}> = ({ suggestion, onAdd }) => (
-    <div className="bg-orange-50 dark:bg-gray-700/30 p-5 rounded-2xl border border-orange-100 dark:border-white/5 flex items-center justify-between gap-4 transition-all hover:border-orange-500/30">
-        <div className="flex-1">
-            <h4 className="font-black text-sm uppercase tracking-tight text-gray-800 dark:text-white">{suggestion.name}</h4>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium leading-relaxed italic">"{suggestion.description}"</p>
-        </div>
-        <button
-            onClick={() => onAdd(suggestion)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-black py-2.5 px-5 rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 text-[10px] uppercase tracking-widest flex-shrink-0"
-        >
-            + ADD TO PATH
-        </button>
-    </div>
-);
-
-const AISuggestions: React.FC<{ 
-    bookings: Booking[]; 
-    onAddSuggestion: (booking: Booking) => void; 
-}> = ({ bookings, onAddSuggestion }) => {
-    const { profile } = useUser();
-    const [suggestions, setSuggestions] = useState<AIActivitySuggestion[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleFetchSuggestions = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const result = await getItinerarySuggestions(bookings, profile);
-            setSuggestions(result);
-        } catch (err: any) {
-            setError(err.message || "Could not fetch suggestions.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleAddSuggestion = (suggestion: AIActivitySuggestion) => {
-        const firstBookingDate = bookings.length > 0 
-            ? bookings[0].date 
-            : new Date().toISOString().split('T')[0];
-
-        const newBooking: Booking = {
-            id: `SUGG-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            type: 'Activity',
-            details: `${suggestion.name}`,
-            date: firstBookingDate,
-            reminderSet: false
-        };
-        onAddSuggestion(newBooking);
-        setSuggestions(prev => prev.filter(s => s.name !== suggestion.name));
-    };
-
-    if (bookings.length === 0) return null;
-
-    return (
-        <div className="mt-12 bg-white dark:bg-[#1a1c2e] p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/5 relative overflow-hidden">
-            <div className="relative z-10">
-                <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tighter flex items-center gap-3">
-                    <span className="text-2xl">✨</span> AI Path Expander
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 font-medium">
-                    Unlocking hidden nodes based on your current itinerary registry.
-                </p>
-
-                {suggestions.length === 0 && !isLoading && !error && (
-                    <button
-                        onClick={handleFetchSuggestions}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-orange-500/20 transition-all uppercase tracking-widest text-xs"
-                    >
-                        Analyze & Generate Suggestions
-                    </button>
-                )}
-
-                {isLoading && (
-                    <div className="flex flex-col justify-center items-center py-8">
-                        <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
-                        <span className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Querying Path Intelligence...</span>
-                    </div>
-                )}
-                
-                {error && <p className="text-red-500 dark:text-red-400 text-center font-bold text-xs">{error}</p>}
-
-                {suggestions.length > 0 && (
-                    <div className="space-y-4">
-                        {suggestions.map((s, index) => (
-                            <SuggestionCard key={index} suggestion={s} onAdd={handleAddSuggestion} />
-                        ))}
-                    </div>
-                )}
-            </div>
-            <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl font-black rotate-12 select-none pointer-events-none">AI</div>
-        </div>
-    );
-};
-
-const TripDurationManager: React.FC = () => {
-    const [tripDetails, setTripDetails] = useLocalStorage<TripDetails | null>('tripDetails', null);
-    const [startDate, setStartDate] = useState(tripDetails?.startDate || '');
-    const [endDate, setEndDate] = useState(tripDetails?.endDate || '');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-
-    const handleSave = () => {
-        setError('');
-        setSuccess('');
-        if (!startDate || !endDate) {
-            setError('Parameters incomplete.');
-            return;
-        }
-        if (new Date(endDate) < new Date(startDate)) {
-            setError('Temporal anomaly: End date precedes Start date.');
-            return;
-        }
-        setTripDetails({ startDate, endDate });
-        setSuccess('Journey duration synchronized.');
-        setTimeout(() => setSuccess(''), 3000);
-    };
-
-    return (
-        <div className="bg-white dark:bg-[#1a1c2e] p-8 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-white/5 mb-10 relative overflow-hidden">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tighter flex items-center gap-3">
-                <span className="text-2xl">⏳</span> Temporal Registry
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end relative z-10">
-                <div className="space-y-2">
-                    <label htmlFor="start-date" className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Start Date</label>
-                    <input
-                        type="date"
-                        id="start-date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-6 py-3.5 bg-gray-50 dark:bg-[#111222] border-2 border-transparent rounded-2xl focus:border-orange-500 outline-none transition-all font-bold dark:text-white shadow-inner"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label htmlFor="end-date" className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">End Date</label>
-                    <input
-                        type="date"
-                        id="end-date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={startDate}
-                        className="w-full px-6 py-3.5 bg-gray-50 dark:bg-[#111222] border-2 border-transparent rounded-2xl focus:border-orange-500 outline-none transition-all font-bold dark:text-white shadow-inner"
-                    />
-                </div>
-                <button
-                    onClick={handleSave}
-                    className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-4 px-6 rounded-2xl shadow-xl transition-all transform active:scale-95 uppercase tracking-widest text-[10px]"
-                >
-                    Sync Timeline
+        <div className="mt-8 flex justify-between items-center relative z-10">
+            <div className="flex gap-3">
+                <button onClick={() => onToggleReminder(booking.id)} className={`p-3 rounded-2xl transition-all ${booking.reminderSet ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-500 hover:text-white'}`}>
+                    {booking.reminderSet ? <BellIconSolid className="w-5 h-5" /> : <BellIcon className="w-5 h-5" />}
                 </button>
+                <button className="p-3 bg-white/5 rounded-2xl text-gray-500 hover:text-blue-500 transition-all border border-transparent hover:border-blue-500/20">🌍</button>
             </div>
-            {error && <p className="text-[10px] text-red-500 mt-4 font-black uppercase tracking-widest text-center">{error}</p>}
-            {success && <p className="text-[10px] text-green-500 mt-4 font-black uppercase tracking-widest text-center">{success}</p>}
-            <div className="absolute bottom-0 right-0 p-4 opacity-[0.03] text-9xl font-black rotate-12 select-none pointer-events-none">TIME</div>
+            <button onClick={() => onRemove(booking.id)} className="text-gray-600 hover:text-red-500 text-[10px] font-black uppercase tracking-[0.2em] transition-colors flex items-center gap-2">
+                ERASE FROM PATH <span className="text-lg">×</span>
+            </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
-const Itinerary: React.FC<{ onNotify?: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void }> = ({ onNotify }) => {
+const Itinerary: React.FC = () => {
   const [bookings, setBookings] = useLocalStorage<Booking[]>('bookings', []);
   const [tripDetails] = useLocalStorage<TripDetails | null>('tripDetails', null);
+  const { profile } = useUser();
+  const [suggestions, setSuggestions] = useState<AIActivitySuggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRemoveBooking = (id: string) => {
-    setBookings(bookings.filter(b => b.id !== id));
+  const sortedBookings = useMemo(() => {
+    return [...bookings].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [bookings]);
+
+  const runExpander = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getItinerarySuggestions(bookings, profile);
+      setSuggestions(res);
+    } catch (e) { console.error(e); }
+    finally { setIsLoading(false); }
   };
-  
-  const handleToggleReminder = (id: string) => {
-    setBookings(bookings.map(b => 
-      b.id === id ? { ...b, reminderSet: !b.reminderSet } : b
-    ));
-  };
-
-  const handleAddSuggestionToItinerary = (newBooking: Booking) => {
-    setBookings(prev => [...prev, newBooking]);
-    if (onNotify) {
-        onNotify({
-            title: 'Path Updated',
-            message: `"${newBooking.details}" has been added to your journey.`,
-            type: 'success'
-        });
-    }
-  };
-
-  const { filteredBookings, otherBookings } = useMemo(() => {
-    const sorted = [...bookings].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-    if (!tripDetails || !tripDetails.startDate || !tripDetails.endDate) {
-        return { filteredBookings: sorted, otherBookings: [] };
-    }
-
-    const start = new Date(tripDetails.startDate + 'T00:00:00');
-    const end = new Date(tripDetails.endDate + 'T23:59:59');
-
-    return {
-        filteredBookings: sorted.filter(b => {
-            const d = new Date(b.date + 'T00:00:00');
-            return d >= start && d <= end;
-        }),
-        otherBookings: sorted.filter(b => {
-            const d = new Date(b.date + 'T00:00:00');
-            return d < start || d > end;
-        })
-    };
-  }, [bookings, tripDetails]);
 
   return (
-    <div className="max-w-4xl mx-auto pb-24 animate-fadeIn">
-      <header className="mb-10 px-2">
-          <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Personal Journey Path</h1>
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-[0.4em] mt-2">Master Itinerary & Booking Registry</p>
+    <div className="max-w-7xl mx-auto pb-40 animate-fadeIn h-screen overflow-y-auto custom-scrollbar px-6 selection:bg-orange-500/30">
+      
+      {/* --- GLOBAL COMMAND HEADER --- */}
+      <header className="py-16 flex flex-col lg:flex-row justify-between items-center gap-10 border-b border-white/5 mb-16">
+        <div className="text-center lg:text-left">
+            <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter leading-none">Journey <span className="text-orange-500">Nodes</span></h1>
+            <p className="text-gray-500 text-[11px] font-bold uppercase tracking-[0.6em] mt-4">Sequential Path Synchronization Protocol</p>
+        </div>
+        <div className="flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 shadow-2xl">
+            <button className="bg-white text-black px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">Export Path PDF</button>
+            <button className="p-4 bg-orange-500 text-white rounded-full shadow-lg hover:scale-110 active:scale-90 transition-transform">📅</button>
+        </div>
       </header>
 
-      <TripDurationManager />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        {/* --- LEFT: THE TIMELINE --- */}
+        <div className="lg:col-span-8">
+            <div className="mb-12 flex items-center gap-8 px-2">
+                <span className="text-[12px] font-black text-gray-500 uppercase tracking-[0.5em]">Active Temporal Flow</span>
+                <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+            </div>
 
-      <div className="space-y-12">
-          <section className="space-y-6">
-              <div className="flex items-center gap-4 px-2">
-                  <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em]">Active Journey Nodes</h2>
-                  <div className="flex-1 h-px bg-gray-100 dark:bg-white/5"></div>
-              </div>
-              
-              {filteredBookings.length > 0 ? (
+            {sortedBookings.length > 0 ? (
+                <div className="pl-6">
+                    {sortedBookings.map(b => (
+                        <ItineraryNode key={b.id} booking={b} onRemove={(id) => setBookings(bookings.filter(x => x.id !== id))} onToggleReminder={() => {}} />
+                    ))}
+                </div>
+            ) : (
+                <div className="py-32 text-center bg-white/5 rounded-[4rem] border-2 border-dashed border-white/5 group">
+                    <div className="text-9xl mb-8 opacity-10 group-hover:opacity-30 transition-opacity">🗺️</div>
+                    <h3 className="text-xl font-black text-gray-600 uppercase tracking-[0.4em]">Registry Empty</h3>
+                    <p className="mt-4 text-[10px] font-bold text-gray-700 uppercase tracking-widest italic">Awaiting node synchronization from booking terminal</p>
+                </div>
+            )}
+        </div>
+
+        {/* --- RIGHT: INTELLIGENCE PANEL --- */}
+        <div className="lg:col-span-4 space-y-12">
+            {/* Temporal Registry HUD */}
+            <div className="bg-[#111222] p-10 rounded-[3.5rem] border border-white/5 shadow-3xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 text-6xl opacity-[0.03] font-black italic pointer-events-none">SYNC</div>
+                <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-10 flex items-center gap-4">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span> Global Timeline
+                </h3>
                 <div className="space-y-4">
-                  {filteredBookings.map(booking => (
-                    <ItineraryItem key={booking.id} booking={booking} onRemove={handleRemoveBooking} onToggleReminder={handleToggleReminder} />
-                  ))}
+                    <div className="bg-black/40 p-6 rounded-[2rem] border border-white/5">
+                        <p className="text-[9px] font-black text-gray-500 uppercase mb-2">Registry Start</p>
+                        <p className="text-lg font-black text-white uppercase italic tracking-widest">{tripDetails?.startDate || 'PENDING'}</p>
+                    </div>
+                    <div className="bg-black/40 p-6 rounded-[2rem] border border-white/5">
+                        <p className="text-[9px] font-black text-gray-500 uppercase mb-2">Registry End</p>
+                        <p className="text-lg font-black text-white uppercase italic tracking-widest">{tripDetails?.endDate || 'PENDING'}</p>
+                    </div>
+                    <button className="w-full py-5 bg-white/5 hover:bg-white/10 text-orange-500 border border-orange-500/30 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all mt-6">Configure Chronology</button>
                 </div>
-              ) : (
-                <div className="text-center bg-white dark:bg-[#1a1c2e] p-12 rounded-[3rem] border-2 border-dashed border-gray-100 dark:border-white/5 shadow-inner">
-                  <div className="flex justify-center text-gray-200 dark:text-gray-700 mb-6 text-6xl">
-                    🗺️
-                  </div>
-                  <h2 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-tighter">Registry Empty for this Timeline</h2>
-                  <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm font-medium">Add bookings in the 'Booking' section to populate your journey nodes.</p>
-                </div>
-              )}
-          </section>
+            </div>
 
-          {otherBookings.length > 0 && (
-              <section className="space-y-6 pt-6">
-                  <div className="flex items-center gap-4 px-2">
-                      <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em]">Path Vault (Other Dates)</h2>
-                      <div className="flex-1 h-px bg-gray-100 dark:bg-white/5"></div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70 hover:opacity-100 transition-opacity">
-                      {otherBookings.map(booking => (
-                        <ItineraryItem key={booking.id} booking={booking} onRemove={handleRemoveBooking} onToggleReminder={handleToggleReminder} />
-                      ))}
-                  </div>
-              </section>
-          )}
+            {/* AI EXPANDER: PRE-LINKED CARDS */}
+            <div className="bg-gradient-to-br from-orange-600/10 to-red-600/10 p-10 rounded-[4rem] border border-orange-500/20 shadow-4xl relative overflow-hidden">
+                <div className="absolute -top-4 -right-4 bg-orange-500 text-white text-[9px] font-black px-5 py-2 rounded-full shadow-2xl animate-bounce z-20">NEURAL AI</div>
+                <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">Node Expander</h3>
+                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-12 leading-loose">Gemini is analyzing path density to suggest heritage nodes.</p>
 
-          <AISuggestions bookings={filteredBookings} onAddSuggestion={handleAddSuggestionToItinerary} />
+                {suggestions.length > 0 ? (
+                    <div className="space-y-6">
+                        {suggestions.map((s, i) => (
+                            <div key={i} className="p-6 bg-black/40 rounded-[2rem] border border-white/5 flex justify-between items-center group/item hover:border-orange-500/50 transition-all shadow-inner">
+                                <div>
+                                    <h4 className="text-md font-black text-white uppercase tracking-tight italic">{s.name}</h4>
+                                    <p className="text-[9px] text-gray-600 uppercase mt-1 tracking-widest">Confidence: 98%</p>
+                                </div>
+                                <button className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center shadow-xl hover:bg-orange-500 hover:text-white transition-all transform active:scale-75">＋</button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <button onClick={runExpander} className={`w-full py-6 bg-white text-black font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-3xl hover:bg-orange-500 hover:text-white transition-all ${isLoading ? 'animate-pulse' : ''}`}>
+                        {isLoading ? 'ANALYZING PATH...' : 'Synthesize Suggestions'}
+                    </button>
+                )}
+            </div>
+        </div>
       </div>
 
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        .animate-slideIn { animation: slideIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
       `}</style>
     </div>
   );

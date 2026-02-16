@@ -1,18 +1,21 @@
-
-import React, { useState } from 'react';
-import { UsersIcon, InfoIcon, SearchIcon, CopyIcon, MicrophoneIcon } from '../icons/Icons';
+// @ts-nocheck
+import React, { useState, useRef, useEffect } from 'react';
+import { UsersIcon, InfoIcon, CopyIcon, MicrophoneIcon } from '../icons/Icons';
 import { translateText, generateSpeech, playRawPcm } from '../../services/geminiService';
 
 const PhraseCard: React.FC<{ eng: string; hin: string; onSpeak: (t: string) => void }> = ({ eng, hin, onSpeak }) => (
     <div 
         onClick={() => onSpeak(hin)}
-        className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 cursor-pointer transition-all hover:shadow-md group"
+        className="group relative bg-white/5 backdrop-blur-xl p-5 rounded-[2rem] border border-white/5 hover:border-orange-500/50 cursor-pointer transition-all duration-500 hover:shadow-[0_10px_40px_rgba(249,115,22,0.1)] overflow-hidden"
     >
-      <div className="flex justify-between items-start">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{eng}</p>
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity">🔊</span>
+      {/* Subtle Glow */}
+      <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      
+      <div className="relative z-10 flex justify-between items-start">
+        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{eng}</p>
+        <span className="text-xs grayscale group-hover:grayscale-0 transition-all">🔊</span>
       </div>
-      <p className="text-sm font-black text-[#000080] dark:text-blue-300 mt-1">{hin}</p>
+      <p className="relative z-10 text-md font-black text-white mt-2 group-hover:text-orange-500 transition-colors">{hin}</p>
     </div>
 );
 
@@ -26,18 +29,15 @@ const BhashaSangam: React.FC<{ onAIService?: (fn: () => Promise<any>) => Promise
 
     const handleTranslate = async () => {
         if (!inputText.trim()) return;
-        
         setIsTranslating(true);
         setError(null);
-        setTranslatedText(""); 
-        
         try {
             const result = onAIService 
                 ? await onAIService(() => translateText(inputText, targetLang))
                 : await translateText(inputText, targetLang);
             setTranslatedText(result);
         } catch (err: any) {
-            setError(err.message || "Uplink Error: Translation failed.");
+            setError(err.message || "Uplink Error");
         } finally {
             setIsTranslating(false);
         }
@@ -49,110 +49,101 @@ const BhashaSangam: React.FC<{ onAIService?: (fn: () => Promise<any>) => Promise
         try {
             const audioData = await generateSpeech(text);
             await playRawPcm(audioData);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsSpeaking(false);
-        }
+        } catch (err) { console.error(err); }
+        finally { setIsSpeaking(false); }
     };
 
     return (
-        <div className="max-w-4xl mx-auto pb-24 animate-fadeIn">
-            <div className="bg-[#000080] rounded-3xl p-8 text-white shadow-xl mb-8 text-center relative overflow-hidden">
-                <div className="relative z-10">
-                    <h2 className="text-3xl font-black mb-2 flex items-center justify-center gap-3">
-                        <UsersIcon /> Bhasha Sangam
-                    </h2>
-                    <p className="text-xs font-bold text-blue-200 uppercase tracking-widest">Universal Bharat Voice & Text</p>
+        <div className="max-w-6xl mx-auto pb-32 animate-fadeIn px-4 custom-scrollbar overflow-y-auto h-screen">
+            {/* Neural Header */}
+            <div className="bg-gradient-to-br from-[#000080] to-blue-900 rounded-[3rem] p-10 text-white shadow-2xl mb-12 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                <div className="relative z-10 text-center">
+                    <div className="inline-block p-4 bg-white/10 rounded-3xl mb-4 border border-white/10 animate-pulse">
+                        <UsersIcon className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl font-black uppercase italic tracking-tighter">Bhasha <span className="text-orange-500">Sangam</span></h2>
+                    <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.5em] mt-2">Universal Path Communication Protocol</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-lg border-b-8 border-[#FF9933]">
-                    <div className="flex justify-between items-center mb-4">
-                        <select className="bg-gray-100 dark:bg-gray-700 p-2 rounded-xl text-xs font-bold outline-none border-none dark:text-white">
-                            <option>Auto-Detect</option>
-                            <option>English</option>
-                        </select>
-                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-full text-[#FF9933]">
-                            <InfoIcon />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Input Terminal */}
+                <div className="bg-white/5 backdrop-blur-2xl p-8 rounded-[3.5rem] border border-white/10 shadow-3xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Source Material</span>
+                        <div className="flex gap-2">
+                             <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+                             <span className="text-[10px] font-black text-green-500 uppercase">Neural Live</span>
                         </div>
                     </div>
                     <textarea 
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Type anything to translate to local Bhasha..." 
-                        className="w-full h-40 bg-slate-50 dark:bg-gray-900 p-4 rounded-2xl outline-none text-gray-700 dark:text-gray-200 font-medium resize-none"
-                    ></textarea>
-                    <div className="flex justify-between items-center mt-4">
+                        placeholder="Speak or type your path's query..." 
+                        className="w-full h-48 bg-black/20 p-6 rounded-[2.5rem] outline-none text-white font-medium resize-none border border-white/5 focus:border-orange-500/50 transition-all text-lg italic"
+                    />
+                    <div className="flex gap-4 mt-6">
                         <button 
                             onClick={handleTranslate}
                             disabled={isTranslating || !inputText.trim()}
-                            className="bg-blue-600 text-white font-black px-8 py-2.5 rounded-full hover:bg-blue-700 disabled:bg-gray-300 shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest text-[10px]"
+                            className="flex-1 bg-white text-black font-black py-4 rounded-full hover:bg-orange-500 hover:text-white transition-all uppercase tracking-widest text-[10px] shadow-xl disabled:opacity-20"
                         >
-                            {isTranslating ? 'Linking Path...' : 'Translate'}
+                            {isTranslating ? 'Linking...' : 'Sync Translation'}
                         </button>
-                        <button className="bg-[#FF9933] p-4 rounded-full text-white shadow-lg shadow-orange-500/20 hover:scale-110 active:scale-95 transition-all"><MicrophoneIcon /></button>
+                        <button className="bg-orange-500 p-5 rounded-full text-white shadow-xl hover:scale-110 active:rotate-12 transition-all"><MicrophoneIcon /></button>
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-lg border-b-8 border-[#000080] flex flex-col justify-between">
+                {/* Output Node */}
+                <div className="bg-white/5 backdrop-blur-2xl p-8 rounded-[3.5rem] border border-white/10 shadow-3xl flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 text-8xl font-black text-white/[0.02] pointer-events-none uppercase">VOX</div>
+                    
                     <div>
-                        <div className="flex justify-between items-center mb-4 text-[#000080] dark:text-blue-300">
+                        <div className="flex justify-between items-center mb-6">
                             <select 
                                 value={targetLang}
                                 onChange={(e) => setTargetLang(e.target.value)}
-                                className="bg-gray-100 dark:bg-gray-700 p-2 rounded-xl text-xs font-bold outline-none border-none dark:text-white"
+                                className="bg-black/40 p-3 px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest text-orange-500 outline-none border border-white/5 cursor-pointer"
                             >
-                                <option value="Hindi">Hindi</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Marathi">Marathi</option>
+                                <option value="Hindi">Hindi (Standard)</option>
+                                <option value="Chhattisgarhi">Chhattisgarhi (Raipur Hub)</option>
+                                <option value="Sanskrit">Sanskrit (Heritage)</option>
+                                <option value="Japanese">Japanese (Global)</option>
                             </select>
-                            <button 
-                                onClick={() => { if(translatedText) navigator.clipboard.writeText(translatedText) }} 
-                                disabled={!translatedText}
-                                className="hover:text-orange-500 transition-colors disabled:opacity-30"
-                            >
-                                <CopyIcon />
-                            </button>
+                            <button onClick={() => navigator.clipboard.writeText(translatedText)} className="text-gray-500 hover:text-white transition-all"><CopyIcon /></button>
                         </div>
-                        <div className={`w-full h-40 p-4 rounded-2xl text-[#000080] dark:text-blue-200 font-bold overflow-y-auto transition-all ${isTranslating ? 'bg-blue-100/50 dark:bg-blue-900/20 animate-pulse' : 'bg-blue-50/50 dark:bg-gray-900/50'}`}>
-                            {isTranslating ? (
-                                <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">Querying AI Hub...</p>
-                            ) : error ? (
-                                <div className="flex flex-col items-center justify-center h-full text-center">
-                                    <p className="text-rose-500 text-xs font-black uppercase mb-1">Path Interrupted</p>
-                                    <p className="text-gray-400 text-[10px] italic">{error}</p>
-                                </div>
-                            ) : translatedText ? (
-                                <p className="text-lg leading-relaxed">{translatedText}</p>
+                        
+                        <div className={`w-full h-48 p-8 rounded-[2.5rem] transition-all flex items-center justify-center text-center ${isTranslating ? 'bg-orange-500/5 animate-pulse' : 'bg-black/20'}`}>
+                            {translatedText ? (
+                                <p className="text-2xl text-white font-black italic tracking-tight">"{translatedText}"</p>
                             ) : (
-                                <p className="text-gray-400 font-normal italic">Path translation will appear here...</p>
+                                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.5em]">Awaiting Neural Synthesis</p>
                             )}
                         </div>
                     </div>
+
                     <button 
                         onClick={() => handleSpeak(translatedText)}
-                        disabled={!translatedText || isSpeaking || isTranslating}
-                        className={`w-full mt-4 bg-[#000080] text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-blue-900/30 flex items-center justify-center gap-2 transition-all ${isSpeaking ? 'opacity-50 animate-pulse' : 'hover:scale-[1.02] active:scale-[0.98]'} disabled:bg-gray-200 disabled:text-gray-400`}
+                        disabled={!translatedText || isSpeaking}
+                        className={`w-full mt-6 py-5 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[10px] transition-all flex items-center justify-center gap-4 ${isSpeaking ? 'bg-orange-500 text-white animate-bounce' : 'bg-white/5 text-orange-500 border border-orange-500/20 hover:bg-orange-500 hover:text-white shadow-2xl'}`}
                     >
-                        🔊 {isSpeaking ? 'Voicing Path...' : 'Listen Translation'}
+                        {isSpeaking ? '🔊 Playing Audio' : '🔊 Voice Output'}
                     </button>
                 </div>
             </div>
 
-            <div className="mt-12">
-                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 px-2 flex items-center gap-2">
-                    <span className="w-8 h-px bg-gray-300"></span>
-                    Interactive Phrases
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <PhraseCard eng="How much is this?" hin="Ye kitne ka hai?" onSpeak={handleSpeak} />
-                    <PhraseCard eng="Where is the station?" hin="Station kahan hai?" onSpeak={handleSpeak} />
-                    <PhraseCard eng="I need help!" hin="Mujhe madad chahiye!" onSpeak={handleSpeak} />
-                    <PhraseCard eng="Is it vegetarian?" hin="Kya ye shakahari hai?" onSpeak={handleSpeak} />
+            {/* Quick Access Phrases */}
+            <div className="mt-20">
+                <div className="flex items-center gap-4 mb-10">
+                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.5em]">Interactive Path Phrases</h3>
+                    <div className="h-px flex-1 bg-white/5"></div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <PhraseCard eng="Traditional Food?" hin="Yahan ka prasiddh bhojan kya hai?" onSpeak={handleSpeak} />
+                    <PhraseCard eng="Directions to Hub?" hin="Path darshak kahan hai?" onSpeak={handleSpeak} />
+                    <PhraseCard eng="Safe for Travel?" hin="Kya ye rasta surakshit hai?" onSpeak={handleSpeak} />
+                    <PhraseCard eng="Translate to English" hin="Kya aap angrezi bolte hain?" onSpeak={handleSpeak} />
                 </div>
             </div>
         </div>

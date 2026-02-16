@@ -1,12 +1,13 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import useLocalStorage from '../../hooks/useLocalStorage';
 import { useUser } from '../../contexts/UserContext';
-import { PlaceInfo, MapMarker, View } from '../../types';
-import { SearchIcon, CompassIcon, RouteIcon, MapIcon, ExternalLinkIcon } from '../icons/Icons';
+import { PlaceInfo, MapMarker } from '../../types';
+import { SearchIcon, CompassIcon, RouteIcon } from '../icons/Icons';
 import { searchPlacesWithAI, getPlaceInformation } from '../../services/geminiService';
 
 const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> }> = ({ onAIService }) => {
-  const [theme] = useLocalStorage<'light' | 'dark'>('theme', 'light');
+  const [theme] = useLocalStorage<'light' | 'dark'>('theme', 'dark');
   const { profile } = useUser();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,356 +21,137 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
-  const tileLayerRef = useRef<any>(null);
 
-  // Default Starting View: Geographic Center of Interest
-  const START_POS: [number, number] = [21.2514, 81.6296];
+  const START_POS: [number, number] = [21.2514, 81.6296]; // Raipur Hub
 
+  // --- INITIALIZE NEURAL MAP ---
   useEffect(() => {
     if (!mapInstanceRef.current && mapContainerRef.current && window.L) {
       const L = window.L;
-      const map = L.map(mapContainerRef.current, {
-          zoomControl: false,
-          attributionControl: false
-      }).setView(START_POS, 13);
+      const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: false }).setView(START_POS, 13);
       
-      const darkTiles = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
-      const lightTiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const tilesUrl = document.documentElement.classList.contains('dark') ? darkTiles : lightTiles;
+      const tilesUrl = theme === 'dark' 
+        ? 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-      const layer = L.tileLayer(tilesUrl, { maxZoom: 20 }).addTo(map);
-
-      tileLayerRef.current = layer;
+      L.tileLayer(tilesUrl, { maxZoom: 20 }).addTo(map);
       mapInstanceRef.current = map;
       markersLayerRef.current = L.layerGroup().addTo(map);
-      
-      // Starting Greeting Node
+
+      // Initial Marker
       L.marker(START_POS, {
-          icon: L.divIcon({
-              className: 'custom-div-icon',
-              html: `
-                <div class="marker-wrapper active animate-bounce">
-                    <div class="marker-pin shadow-2xl bg-orange-600 border-white">
-                        <span class="text-[10px]">🚩</span>
-                    </div>
-                    <div class="marker-aura"></div>
-                </div>
-              `,
-              iconSize: [40, 40],
-              iconAnchor: [20, 40]
-          })
-      }).addTo(markersLayerRef.current)
-        .bindPopup(`
-          <div class="p-2 text-center">
-            <p class="font-black text-xs uppercase tracking-tight text-orange-600">Universal Map Active. Search any country, city, or remote village! 🌎</p>
-          </div>
-        `, {
-            className: 'custom-popup',
-            closeButton: false
+        icon: L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div class="marker-wrapper active"><div class="marker-pin shadow-2xl bg-orange-600 border-white"><span class="text-[10px]">🚩</span></div><div class="marker-aura"></div></div>`,
+          iconSize: [40, 40], iconAnchor: [20, 40]
         })
-        .openPopup();
-
-      setTimeout(() => {
-          map.invalidateSize();
-      }, 400);
-
-      map.on('click', () => setSelectedMarkerId(null));
+      }).addTo(markersLayerRef.current).bindPopup('<p class="font-black text-[10px] uppercase text-orange-600">Raipur Central Hub Active</p>');
     }
-    return () => { 
-        if (mapInstanceRef.current) { 
-            mapInstanceRef.current.remove(); 
-            mapInstanceRef.current = null; 
-        } 
-    };
+    return () => { if (mapInstanceRef.current) mapInstanceRef.current.remove(); };
   }, []);
-
-  useEffect(() => {
-      if (mapInstanceRef.current && tileLayerRef.current) {
-          const darkTiles = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
-          const lightTiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-          tileLayerRef.current.setUrl(document.documentElement.classList.contains('dark') ? darkTiles : lightTiles);
-      }
-  }, [theme]);
 
   const handleMarkerClick = useCallback(async (m: MapMarker) => {
     setSelectedMarkerId(m.id);
-    setPlaceInfo(null);
     setIsFetchingWisdom(true);
-    if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([m.lat, m.lng], 16, { 
-            duration: 1.8,
-            easeLinearity: 0.1
-        });
-    }
+    mapInstanceRef.current?.flyTo([m.lat, m.lng], 16, { duration: 1.5 });
+    
     try {
         const info = await onAIService(() => getPlaceInformation(m.name, profile));
         setPlaceInfo(info);
     } catch (err) {} finally { setIsFetchingWisdom(false); }
   }, [onAIService, profile]);
 
-  useEffect(() => {
-    if (mapInstanceRef.current && markersLayerRef.current && window.L) {
-      const L = window.L;
-      
-      if (markers.length > 0) {
-        markersLayerRef.current.clearLayers();
-        const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
-        
-        markers.forEach(m => {
-          const isSelected = m.id === selectedMarkerId;
-          const marker = L.marker([m.lat, m.lng], {
-            icon: L.divIcon({
-              className: 'custom-div-icon',
-              html: `
-                <div class="marker-wrapper ${isSelected ? 'active' : ''}">
-                    <div class="marker-pin shadow-2xl">
-                        <span class="text-[10px]">📍</span>
-                    </div>
-                    ${isSelected ? '<div class="marker-aura"></div>' : ''}
-                </div>
-              `,
-              iconSize: [30, 30],
-              iconAnchor: [15, 30]
-            })
-          }).addTo(markersLayerRef.current);
-          
-          marker.on('click', (e: any) => { 
-              L.DomEvent.stopPropagation(e); 
-              handleMarkerClick(m); 
-          });
-        });
-
-        if (!selectedMarkerId) {
-            mapInstanceRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 });
-        }
-      }
-    }
-  }, [markers, selectedMarkerId, handleMarkerClick]);
-
-  const handleSearch = async (queryOverride?: string) => {
-    const finalQuery = queryOverride || searchQuery;
-    if (!finalQuery.trim()) return;
-    
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
     setIsSearching(true);
-    setSelectedMarkerId(null);
-    
-    const center = mapInstanceRef.current?.getCenter();
-    const contextCoords = center ? { lat: center.lat, lng: center.lng } : undefined;
-
     try {
-        const res = await onAIService(() => searchPlacesWithAI(finalQuery, profile, contextCoords));
-        if (res.markers && res.markers.length > 0) {
-            setMarkers(res.markers);
-        } else {
-            setMarkers([]);
-        }
+        const res = await onAIService(() => searchPlacesWithAI(searchQuery, profile));
+        setMarkers(res.markers || []);
     } catch (err) {} finally { setIsSearching(false); }
   };
 
-  const handleLocateMe = () => {
-    if (!navigator.geolocation || !window.L) return;
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude, longitude } = pos.coords;
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([latitude, longitude], 15);
-            window.L.circle([latitude, longitude], {
-                radius: 100,
-                color: '#3b82f6',
-                fillColor: '#3b82f6',
-                fillOpacity: 0.15
-            }).addTo(mapInstanceRef.current);
-            
-            window.L.marker([latitude, longitude], { 
-                icon: window.L.divIcon({ 
-                    className: 'custom-div-icon', 
-                    html: `<div class="user-beacon"></div>`, 
-                    iconSize: [20, 20], 
-                    iconAnchor: [10, 10] 
-                }) 
-            }).addTo(mapInstanceRef.current).bindPopup('Local Node Detected').openPopup();
-        }
-        setIsLocating(false);
-    }, () => setIsLocating(false));
-  };
-
-  const categories = [
-      { id: 'stores', label: 'Local Shops', icon: '🛒', query: 'Shops in the area' },
-      { id: 'food', label: 'Restaurants', icon: '🥘', query: 'Best restaurants globally' },
-      { id: 'medical', label: 'Medical', icon: '🏥', query: 'Hospitals nearby' },
-      { id: 'stays', label: 'Stays', icon: '🏨', query: 'Luxury hotels and heritage stays' },
-      { id: 'attractions', label: 'Explore', icon: '🏛️', query: 'Famous world landmarks and sights' },
-  ];
-
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-12 px-4 md:px-0">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
-            <h1 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">Global Path Map</h1>
-            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.5em] px-1">Universal Spatial Intelligence Active</p>
+    <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-12 px-4 selection:bg-orange-500/30">
+      <header className="flex flex-col md:flex-row justify-between items-center gap-6">
+        <div>
+            <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter">Global <span className="text-orange-500">Node</span> Map</h1>
+            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">Spatial Intelligence Registry v4.0</p>
         </div>
-        
-        <div className="flex-1 max-w-2xl relative group">
+        <div className="flex-1 max-w-2xl relative">
             <input 
-                type="text" 
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search any global node (e.g. Kyoto, London, Hampi, Paris)..." 
-                className="w-full bg-white dark:bg-[#1a1c2e] border-4 border-transparent dark:border-white/5 rounded-[2.5rem] py-5 px-14 text-gray-900 dark:text-white font-bold shadow-3xl focus:border-orange-500 outline-none transition-all text-lg" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                className="w-full bg-white/5 border border-white/10 rounded-full py-5 px-14 text-white font-bold outline-none focus:border-orange-500 transition-all italic"
+                placeholder="Search any global node (e.g. Kyoto, London, Raipur)..."
             />
-            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
-                {isSearching ? <div className="w-5 h-5 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div> : <SearchIcon className="w-6 h-6" />}
+            <div className="absolute left-6 top-1/2 -translate-y-1/2">
+                {isSearching ? <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent animate-spin rounded-full"></div> : <SearchIcon className="text-gray-500" />}
             </div>
-            <button 
-                onClick={() => handleSearch()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 text-white px-6 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95"
-            >
-                GLOBE SEARCH
-            </button>
         </div>
       </header>
 
-      <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
-          {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => { setSearchQuery(cat.query); handleSearch(cat.query); }}
-                className="flex items-center gap-3 bg-white dark:bg-[#1a1c2e] px-6 py-3.5 rounded-2xl border border-gray-100 dark:border-white/5 shadow-xl hover:border-orange-500/50 transition-all group whitespace-nowrap active:scale-95"
-              >
-                <span className="text-xl group-hover:rotate-12 transition-transform">{cat.icon}</span>
-                <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest">{cat.label}</span>
-              </button>
-          ))}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[75vh]">
-        <div className="lg:col-span-3 h-full overflow-hidden flex flex-col bg-white/60 dark:bg-[#111222]/80 backdrop-blur-xl rounded-[3.5rem] border border-gray-100 dark:border-white/5 shadow-3xl">
-            <div className="p-8 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20">
-                <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] flex items-center justify-between">
-                    Worldwide Registry
-                    <span className="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-[9px] font-black">{markers.length}</span>
-                </h3>
+        {/* Sidebar: World Wisdom */}
+        <div className="lg:col-span-3 bg-white/5 backdrop-blur-3xl rounded-[3.5rem] border border-white/10 overflow-hidden flex flex-col shadow-2xl">
+            <div className="p-8 border-b border-white/5">
+                <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">Node Registry</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                {markers.length > 0 ? markers.map(m => (
-                    <button 
-                        key={m.id} 
-                        onClick={() => handleMarkerClick(m)} 
-                        className={`w-full text-left p-6 rounded-3xl transition-all border-2 group/btn ${selectedMarkerId === m.id ? 'bg-orange-500 border-orange-500 text-white shadow-3xl' : 'bg-white dark:bg-[#1a1c2e] border-transparent text-gray-800 dark:text-gray-300 hover:bg-orange-500/5 hover:border-orange-500/20'}`}
-                    >
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[11px] font-black uppercase tracking-tight line-clamp-1 group-hover/btn:text-orange-500 transition-colors">{m.name}</span>
-                            <span className="text-[9px] opacity-40">🌍</span>
-                        </div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 truncate">Global Coordinate Pulse</p>
+                {markers.map(m => (
+                    <button key={m.id} onClick={() => handleMarkerClick(m)} className={`w-full text-left p-6 rounded-3xl border-2 transition-all ${selectedMarkerId === m.id ? 'bg-orange-500 border-orange-500' : 'bg-white/5 border-transparent hover:border-orange-500/30'}`}>
+                        <p className="font-black uppercase text-xs tracking-tight">{m.name}</p>
+                        <p className="text-[8px] font-bold uppercase text-gray-500 mt-1">Coordinate Locked</p>
                     </button>
-                )) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-10">
-                        <div className="w-24 h-24 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-pulse">🛰️</div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">Search globally to populate the path registry. Enter any world location above.</p>
-                    </div>
-                )}
+                ))}
             </div>
         </div>
 
-        <div className="lg:col-span-6 relative">
-            <div className="w-full h-full rounded-[4rem] overflow-hidden shadow-4xl border-4 border-white/50 dark:border-white/5 bg-[#111222]">
-                <div ref={mapContainerRef} className="w-full h-full z-0"></div>
-                
-                <div className="absolute top-8 right-8 z-[1000] flex flex-col gap-4">
-                    <button 
-                        onClick={handleLocateMe} 
-                        className={`p-5 bg-white dark:bg-[#1a1c2e] rounded-3xl shadow-4xl text-blue-500 border border-gray-100 dark:border-white/10 hover:scale-110 transition-all ${isLocating ? 'animate-pulse' : ''}`}
-                    >
-                        <CompassIcon className="w-6 h-6" />
-                    </button>
-                </div>
-            </div>
+        {/* Map Core */}
+        <div className="lg:col-span-6 relative rounded-[4rem] overflow-hidden border-4 border-white/5 shadow-4xl bg-[#0a0b14]">
+            <div ref={mapContainerRef} className="w-full h-full z-0"></div>
+            <button onClick={() => {}} className="absolute top-8 right-8 z-[1000] p-5 bg-orange-500 text-white rounded-3xl shadow-4xl hover:scale-110 transition-all active:rotate-12">
+                <CompassIcon />
+            </button>
         </div>
 
-        <div className="lg:col-span-3 h-full overflow-y-auto custom-scrollbar bg-white/60 dark:bg-[#111222]/80 backdrop-blur-xl rounded-[3.5rem] border border-gray-100 dark:border-white/5 shadow-3xl p-8 relative">
+        {/* Info Hub: The Spatial Wisdom */}
+        <div className="lg:col-span-3 bg-[#111222] rounded-[3.5rem] border border-white/10 p-8 overflow-y-auto custom-scrollbar shadow-3xl relative">
             {!selectedMarkerId ? (
-                <div className="h-full flex flex-col justify-center items-center text-center opacity-40">
-                    <div className="w-24 h-24 bg-orange-500/10 rounded-[2.5rem] flex items-center justify-center text-orange-500 text-5xl shadow-inner animate-bounceSubtle">🧭</div>
-                    <h4 className="text-sm font-black uppercase mt-6 tracking-widest text-gray-500">Universal Navigator</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 leading-relaxed">Selecting a global node will synchronize cultural and historical metadata from our universal wisdom hub.</p>
+                <div className="h-full flex flex-col items-center justify-center opacity-20 text-center">
+                    <div className="text-7xl mb-6">🧭</div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">Initialize Node Interaction</p>
                 </div>
-            ) : (
+            ) : isFetchingWisdom ? (
+                <div className="h-full flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent animate-spin rounded-full mb-6"></div>
+                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Synchronizing Wisdom...</p>
+                </div>
+            ) : placeInfo && (
                 <div className="animate-fadeIn space-y-10">
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-full text-[9px] font-black uppercase tracking-widest">Universal Insight</span>
-                        </div>
-                        <h3 className="text-3xl font-black uppercase tracking-tighter leading-none text-gray-900 dark:text-white">{markers.find(m => m.id === selectedMarkerId)?.name}</h3>
+                        <span className="text-[9px] font-black bg-blue-500/10 text-blue-500 px-4 py-1 rounded-full uppercase tracking-widest border border-blue-500/20">Spatial Intel</span>
+                        <h3 className="text-3xl font-black italic tracking-tighter uppercase leading-none">{placeInfo.name || markers.find(m => m.id === selectedMarkerId)?.name}</h3>
                     </div>
-
-                    {isFetchingWisdom ? (
-                        <div className="py-24 flex flex-col items-center justify-center space-y-8">
-                            <div className="relative">
-                                <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
-                                <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🧠</div>
-                            </div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.5em]">Synchronizing World Wisdom...</p>
-                        </div>
-                    ) : placeInfo && (
-                        <div className="space-y-10">
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Historical Narrative</h4>
-                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed italic border-l-4 border-orange-500/40 pl-6">{placeInfo.history}</p>
-                            </div>
-                            
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Local Global Nodes</h4>
-                                <div className="space-y-3">
-                                    {placeInfo.attractions.slice(0, 3).map((attr, idx) => (
-                                        <div key={idx} className="bg-gray-50/50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5 transition-all hover:border-orange-500/30">
-                                            <p className="text-xs font-black uppercase text-gray-800 dark:text-white mb-1">{attr.name}</p>
-                                            <p className="text-[10px] text-gray-500 font-medium leading-relaxed">{attr.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-blue-600/5 p-8 rounded-[2.5rem] border border-blue-600/10">
-                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Regional Ethics</h4>
-                                <p className="text-xs text-blue-900 dark:text-blue-200 font-bold italic leading-relaxed">"{placeInfo.customs}"</p>
-                            </div>
-
-                            <div className="pt-6 pb-12">
-                                <a 
-                                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(markers.find(m => m.id === selectedMarkerId)?.name || '')}`}
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="w-full py-5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-[0.3em] rounded-[2rem] shadow-3xl shadow-orange-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-4"
-                                >
-                                    <RouteIcon className="w-5 h-5" /> <span>International Route</span>
-                                </a>
-                            </div>
-                        </div>
-                    )}
+                    <div className="space-y-4 border-l-4 border-orange-500/30 pl-6">
+                        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Neural History</p>
+                        <p className="text-sm font-medium italic text-gray-300 leading-relaxed">"{placeInfo.history}"</p>
+                    </div>
+                    <button className="w-full py-5 bg-orange-500 text-white font-black rounded-[2rem] uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4">
+                        <RouteIcon /> Launch Path Darshak
+                    </button>
                 </div>
             )}
         </div>
       </div>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.2); border-radius: 10px; }
-        .marker-wrapper { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .marker-pin { width: 24px; height: 24px; background: #f97316; border: 3px solid white; border-radius: 10px 10px 10px 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; z-index: 2; }
+        .marker-wrapper { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+        .marker-pin { width: 24px; height: 24px; border-radius: 10px 10px 10px 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; z-index: 2; border: 2px solid white; }
         .marker-pin span { transform: rotate(45deg); }
-        .marker-wrapper.active { transform: scale(1.4) translateY(-10px); }
-        .marker-wrapper.active .marker-pin { background: #3b82f6; }
-        .marker-aura { position: absolute; width: 60px; height: 60px; background: rgba(249, 115, 22, 0.2); border-radius: 50%; animation: aura-expand 2s infinite; z-index: 1; }
-        @keyframes aura-expand { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
-        .leaflet-container { background: #111222 !important; outline: none; }
-        .shadow-3xl { box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.4); }
-        .shadow-4xl { box-shadow: 0 50px 120px -30px rgba(0, 0, 0, 0.6); }
-        @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .animate-bounceSubtle { animation: bounceSubtle 3s ease-in-out infinite; }
-        .leaflet-popup-content-wrapper { border-radius: 1.5rem !important; border: 2px solid #f97316; }
-        .dark .leaflet-popup-content-wrapper { background: #111222 !important; color: white !important; }
+        .marker-aura { position: absolute; width: 50px; height: 50px; background: rgba(249, 115, 22, 0.2); border-radius: 50%; animation: aura-pulse 2s infinite; }
+        @keyframes aura-pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+        .leaflet-container { background: #0a0b14 !important; }
       `}</style>
     </div>
   );

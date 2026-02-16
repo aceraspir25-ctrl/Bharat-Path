@@ -4,7 +4,6 @@ import { generateAIImage, editAIImage, generateAIVideo, analyzeMedia, transcribe
 import { useUser } from '../../contexts/UserContext';
 import { CameraIcon, MagicIcon, VideoIcon, SparklesIcon } from '../icons/StudioIcons';
 
-// Adding interface for IDX AI Studio Environment
 declare global {
   interface Window {
     aistudio: {
@@ -22,6 +21,7 @@ const AIStudio: React.FC = () => {
     const [output, setOutput] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [progressStatus, setProgressStatus] = useState('');
     
     const [aspectRatio, setAspectRatio] = useState('16:9');
     const [imageSize, setImageSize] = useState('1K');
@@ -38,9 +38,7 @@ const AIStudio: React.FC = () => {
                 try {
                     const has = await window.aistudio.hasSelectedApiKey();
                     setHasApiKey(has);
-                } catch (err) {
-                    setHasApiKey(false);
-                }
+                } catch (err) { setHasApiKey(false); }
             }
         };
         checkKey();
@@ -56,75 +54,27 @@ const AIStudio: React.FC = () => {
         }
     };
 
-    const handleSelectKey = async () => {
-        if (window.aistudio) {
-            await window.aistudio.openSelectKey();
-            setHasApiKey(true);
-        }
-    };
-
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = recorder;
-            audioChunksRef.current = [];
-
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunksRef.current.push(e.data);
-            };
-
-            recorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                    const base64 = (reader.result as string).split(',')[1];
-                    setLoading(true);
-                    try {
-                        const text = await transcribeAudioFromBase64(base64, 'audio/webm');
-                        setOutput(text);
-                    } catch (err: any) {
-                        alert(err.message);
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                reader.readAsDataURL(audioBlob);
-            };
-
-            recorder.start();
-            setIsRecording(true);
-        } catch (err) {
-            alert("Microphone access required for transcription.");
-        }
-    };
-
-    const stopRecording = () => {
-        mediaRecorderRef.current?.stop();
-        setIsRecording(false);
-    };
-
     const runStudio = async () => {
         if ((mode === 'generate' || mode === 'animate') && !hasApiKey) {
-            await handleSelectKey();
+            if (window.aistudio) await window.aistudio.openSelectKey();
+            setHasApiKey(true);
             return;
         }
 
         setLoading(true);
+        setProgressStatus('Initializing Neural Link...');
+        
         try {
-            if (mode === 'generate') {
-                const res = await generateAIImage(prompt, aspectRatio, imageSize);
-                setOutput(res);
-            } else if (mode === 'edit' && media) {
-                const res = await editAIImage(prompt, media, fileMime);
-                setOutput(res);
-            } else if (mode === 'animate' && media) {
-                const res = await generateAIVideo(prompt, media, fileMime, aspectRatio);
-                setOutput(res);
-            } else if (mode === 'analyze' && media) {
-                const res = await analyzeMedia(media.split(',')[1], fileMime, prompt || "Analyze this media.");
-                setOutput(res);
-            }
+            setTimeout(() => setProgressStatus('Synthesizing Pixels...'), 2000);
+            
+            let res;
+            if (mode === 'generate') res = await generateAIImage(prompt, aspectRatio, imageSize);
+            else if (mode === 'edit' && media) res = await editAIImage(prompt, media, fileMime);
+            else if (mode === 'animate' && media) res = await generateAIVideo(prompt, media, fileMime, aspectRatio);
+            else if (mode === 'analyze' && media) res = await analyzeMedia(media.split(',')[1], fileMime, prompt || "Analyze this.");
+            
+            setOutput(res);
+            setProgressStatus('');
         } catch (err: any) {
             alert(err.message || "Synthesis failed.");
         } finally {
@@ -132,81 +82,107 @@ const AIStudio: React.FC = () => {
         }
     };
 
+    // Global Add-on: Download Feature
+    const downloadOutput = () => {
+        if (!output) return;
+        const link = document.createElement('a');
+        link.href = output;
+        link.download = `BharatPath_AI_${Date.now()}`;
+        link.click();
+    };
+
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn pb-24 px-4 h-screen overflow-y-auto custom-scrollbar">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4">
+        <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-24 px-6 h-screen overflow-y-auto custom-scrollbar selection:bg-orange-500/30">
+            {/* Header with Worldwide Branding */}
+            <header className="flex justify-between items-center pt-6 border-b border-white/5 pb-6">
                 <div>
-                    <h1 className="text-4xl font-black text-white uppercase tracking-tighter">AI Path Studio</h1>
-                    <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.4em] mt-2">Powered by Gemini & Veo</p>
+                    <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter">AI Studio <span className="text-orange-500 text-sm align-top">PRO</span></h1>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.5em] mt-1">Global Media Synthesis Hub</p>
                 </div>
+                {output && (
+                    <button onClick={downloadOutput} className="bg-white/5 hover:bg-white/10 text-white px-6 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all">
+                        ⬇️ Save to Device
+                    </button>
+                )}
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Control Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Control Panel: Futuristic Glassmorphism */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="bg-white/5 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/10">
-                        <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/5 backdrop-blur-3xl p-6 rounded-[3rem] border border-white/10 shadow-2xl">
+                        <div className="grid grid-cols-2 gap-3">
                             {[
-                                { id: 'generate', label: 'Generate', icon: <SparklesIcon /> },
-                                { id: 'edit', label: 'Magic Edit', icon: <MagicIcon /> },
-                                { id: 'animate', label: 'Veo Animate', icon: <VideoIcon /> },
-                                { id: 'analyze', label: 'Lens Scan', icon: <CameraIcon /> },
-                                { id: 'transcribe', label: 'Voice', icon: <span>🎙️</span> }
+                                { id: 'generate', label: 'Create', icon: <SparklesIcon /> },
+                                { id: 'edit', label: 'Re-Imagine', icon: <MagicIcon /> },
+                                { id: 'animate', label: 'Veo Video', icon: <VideoIcon /> },
+                                { id: 'analyze', label: 'Scan Node', icon: <CameraIcon /> },
+                                { id: 'transcribe', label: 'Voice Sync', icon: <span className="text-xl">🎙️</span> }
                             ].map(m => (
                                 <button
                                     key={m.id}
-                                    onClick={() => { setMode(m.id as any); setOutput(null); setMedia(null); }}
-                                    className={`flex flex-col items-center gap-2 p-4 rounded-3xl transition-all border-2 ${mode === m.id ? 'bg-orange-500 border-orange-500 text-white' : 'bg-black/20 border-transparent text-gray-500 hover:border-white/10'}`}
+                                    onClick={() => { setMode(m.id as any); setOutput(null); }}
+                                    className={`flex flex-col items-center gap-3 p-5 rounded-[2rem] transition-all duration-500 border-2 ${mode === m.id ? 'bg-orange-500 border-orange-500 text-white shadow-[0_10px_30px_rgba(249,115,22,0.3)]' : 'bg-black/40 border-transparent text-gray-500 hover:border-white/10'}`}
                                 >
                                     {m.icon}
-                                    <span className="text-[9px] font-black uppercase">{m.label}</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest">{m.label}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Media Upload / Mic */}
-                    <div className="bg-white/5 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white/10">
-                        {mode === 'transcribe' ? (
-                            <div className="flex flex-col items-center py-8">
-                                <button onClick={isRecording ? stopRecording : startRecording} className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-white/5 text-gray-400'}`}>
-                                    {isRecording ? '⏹️' : '🎙️'}
-                                </button>
-                                <p className="text-[10px] uppercase font-black mt-4 text-gray-500">
-                                    {isRecording ? 'Listening...' : 'Start Transcribe'}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <button onClick={() => fileInputRef.current?.click()} className="w-full aspect-video bg-black/40 rounded-3xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden">
-                                    {media ? (
-                                        fileMime.startsWith('video') ? <video src={media} className="w-full h-full object-cover" /> : <img src={media} className="w-full h-full object-cover" />
-                                    ) : <span className="text-[10px] font-black text-gray-500 uppercase">Upload Media</span>}
-                                </button>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*" />
-                                
-                                <textarea
-                                    value={prompt}
-                                    onChange={e => setPrompt(e.target.value)}
-                                    placeholder="Enter AI prompt..."
-                                    className="w-full h-24 bg-black/40 p-4 rounded-2xl text-xs text-white outline-none resize-none"
-                                />
-                                <button onClick={runStudio} disabled={loading} className="w-full py-4 bg-orange-500 text-white rounded-full font-black uppercase text-[10px]">
-                                    {loading ? 'Processing...' : 'Execute Path'}
-                                </button>
-                            </div>
-                        )}
+                    {/* Input/Upload Area */}
+                    <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[3.5rem] border border-white/10 space-y-6">
+                        <div className="space-y-4">
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full aspect-square bg-black/40 rounded-[2.5rem] border-2 border-dashed border-white/5 flex items-center justify-center overflow-hidden hover:border-orange-500/50 transition-all group">
+                                {media ? (
+                                    fileMime.startsWith('video') ? <video src={media} className="w-full h-full object-cover" /> : <img src={media} className="w-full h-full object-cover" />
+                                ) : <div className="text-center group-hover:scale-110 transition-transform"><span className="text-3xl block mb-2">📤</span><span className="text-[9px] font-black text-gray-600 uppercase">Uplink Media</span></div>}
+                            </button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*" />
+                            
+                            <textarea
+                                value={prompt}
+                                onChange={e => setPrompt(e.target.value)}
+                                placeholder="Describe your vision..."
+                                className="w-full h-32 bg-black/40 p-6 rounded-[2rem] text-sm text-white outline-none border border-white/5 focus:border-orange-500/50 transition-all resize-none italic"
+                            />
+                            <button 
+                                onClick={runStudio} 
+                                disabled={loading} 
+                                className="w-full py-6 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:shadow-orange-500/20 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {loading ? 'Synthesizing...' : 'Initialize Path'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Output Canvas */}
+                {/* Output Canvas: The Big Screen */}
                 <div className="lg:col-span-8">
-                    <div className="bg-[#111222] h-[550px] rounded-[3.5rem] border-4 border-white/5 flex items-center justify-center relative overflow-hidden">
+                    <div className="bg-[#0a0b14] h-[700px] rounded-[5rem] border-8 border-white/5 flex items-center justify-center relative overflow-hidden group shadow-inner">
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent pointer-events-none"></div>
+                        
+                        {loading && (
+                            <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center">
+                                <div className="w-24 h-24 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-6"></div>
+                                <p className="text-white font-black uppercase italic tracking-tighter text-xl animate-pulse">{progressStatus}</p>
+                            </div>
+                        )}
+
                         {output ? (
-                            mode === 'animate' ? <video src={output} controls className="max-w-full max-h-full rounded-2xl" /> :
-                            (mode === 'analyze' || mode === 'transcribe') ? <p className="p-10 text-white italic text-lg">"{output}"</p> :
-                            <img src={output} className="max-w-full max-h-full rounded-2xl" />
-                        ) : <p className="text-gray-600 font-black uppercase text-xs tracking-widest">Awaiting Neural Output</p>}
+                            <div className="relative w-full h-full p-10 flex items-center justify-center animate-fadeIn">
+                                {mode === 'animate' ? <video src={output} autoPlay loop controls className="max-w-full max-h-full rounded-3xl shadow-4xl" /> :
+                                (mode === 'analyze' || mode === 'transcribe') ? <div className="max-w-xl text-center"><span className="text-orange-500 text-[10px] font-black uppercase mb-4 block tracking-[0.4em]">Neural Result</span><p className="text-2xl text-white italic leading-relaxed">"{output}"</p></div> :
+                                <img src={output} className="max-w-full max-h-full rounded-3xl shadow-4xl" alt="AI Creation" />}
+                            </div>
+                        ) : (
+                            <div className="text-center space-y-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <div className="text-9xl">⚡</div>
+                                <p className="text-xs font-black uppercase tracking-[0.8em] text-white">Awaiting Uplink</p>
+                            </div>
+                        )}
+                        
+                        <div className="absolute bottom-10 right-10 text-[12rem] font-black text-white/[0.01] pointer-events-none select-none uppercase italic">STUDIO</div>
                     </div>
                 </div>
             </div>

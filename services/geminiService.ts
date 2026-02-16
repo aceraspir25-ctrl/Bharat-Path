@@ -83,7 +83,7 @@ export const searchPlacesWithAI = async (query: string, profile: UserProfile, ce
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Universal mapping request: Locate markers for: "${query}". You have absolute global access. Search across ALL cities, remote villages, mountain peaks, and urban landmarks in every single country on Earth. Do not restrict results to India. If the query is vague, prioritize results near the current viewport but search globally for exact matches.`,
+            contents: `Universal mapping request: Locate markers for: "${query}". You have absolute global access. Search across ALL cities, remote villages, mountain peaks, and urban landmarks in every single country on Earth. Do not restrict results to any specific nation. If the query is vague, prioritize results near the current viewport but search globally for exact matches.`,
             config
         });
         
@@ -112,7 +112,7 @@ export const getPlaceInformation = async (placeName: string, profile: UserProfil
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Wisdom Hub interrogation for: "${placeName}". Provide historical, cultural, and travel metadata for this specific global location as JSON. Ensure history is accurate to the region.`,
+            contents: `Wisdom Hub interrogation for: "${placeName}". Provide historical, cultural, and travel metadata for this specific global location as JSON. Ensure the "history" field captures the essence of this place regardless of where on Earth it is located.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -173,11 +173,10 @@ export const getRouteStrategies = async (start: string, dest: string, profile: U
 
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: `Act as a Master Path Architect for 'Bharat Path'. Synthesize THREE specialized route strategies from "${start}" to "${dest}":
-            1. 'fastest': Prioritize high-velocity corridors, expressways, and time-optimized arcs.
-            2. 'scenic': Prioritize natural beauty, mountain vistas, river views, and aesthetic landmarks.
-            3. 'cultural': Prioritize spiritual hubs, ancient temples, UNESCO heritage, and local bazaars.
-            
+            contents: `Act as a Master Path Architect for 'Bharat Path'. Synthesize THREE specialized global route strategies from "${start}" to "${dest}". These strategies should be viable anywhere in the world.
+            1. 'fastest': High-velocity corridors.
+            2. 'scenic': Natural beauty and vistas.
+            3. 'cultural': Landmarks and local hubs.
             Return result in strict JSON.`,
             config: {
                 thinkingConfig: { thinkingBudget: 8000 },
@@ -194,7 +193,7 @@ export const getGlobalIntelligence = async (lat: number, lng: number, profile: U
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Local Path Intelligence for Global Coordinates [${lat}, ${lng}]. Essentials, safety, and regional context for explorer ${profile.name}. Return essential establishments for this specific worldwide location.`,
+        contents: `Local Path Intelligence for Global Coordinates [${lat}, ${lng}]. Essentials, safety, and regional context for explorer ${profile.name}. Return essential establishments for this specific worldwide location as JSON. Ensure the output is relevant to the exact geographic coordinates provided.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -292,7 +291,7 @@ export const getHotelSuggestions = async (loc: string, profile: UserProfile): Pr
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Vegetarian-first hotel suggestions in ${loc} for explorer ${profile.name}. Focus on local character and high ratings.`,
+        contents: `Vegetarian-first hotel suggestions in ${loc} for explorer ${profile.name}. Focus on local character and high ratings globally.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -315,7 +314,7 @@ export const getItinerarySuggestions = async (bookings: Booking[], profile: User
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Suggest 3 global activities for ${profile.name} based on this itinerary: ${JSON.stringify(bookings)}`,
+        contents: `Suggest 3 activities anywhere on Earth for ${profile.name} based on this itinerary: ${JSON.stringify(bookings)}`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -337,7 +336,7 @@ export const getUnifiedTransitStatus = async (id: string, profile: UserProfile):
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Full status registry interrogation for international transit ID: ${id}`,
+        contents: `Full status registry interrogation for international transit ID: ${id}. Ensure the data is current and verified via global search.`,
         config: { 
             tools: [{ googleSearch: {} }],
             responseMimeType: "application/json",
@@ -365,7 +364,7 @@ export const getSmartSuggestions = async (query: string): Promise<SearchSuggesti
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Generate 3 global search suggestions for travel query: "${query}". Include a local specialty (vegetarian favored) for each suggestion.`,
+            contents: `Generate 3 global search suggestions for travel query: "${query}". Include a local specialty (vegetarian favored) for each suggestion anywhere in the world.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -391,7 +390,7 @@ export const getFlightStatus = async (flightNumber: string, date: string): Promi
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Retrieve current status for flight ${flightNumber} on ${date}. Access international flight databases.`,
+            contents: `Retrieve current status for flight ${flightNumber} on ${date}. Access international flight databases and grounding.`,
             config: {
                 tools: [{ googleSearch: {} }]
             }
@@ -480,7 +479,7 @@ export const connectLiveGuide = async (callbacks: any) => {
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-            systemInstruction: 'You are Bharat, a warm Indian travel companion with global wisdom.'
+            systemInstruction: 'You are Bharat, a warm Indian travel companion with global wisdom. You help explorers anywhere on Earth.'
         }
     });
 };
