@@ -129,7 +129,7 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
   return (
     <div className="relative min-h-full -m-4 md:-m-8 p-4 md:p-8 overflow-x-hidden">
       <div className="absolute inset-0 -z-20 opacity-[0.03] dark:opacity-[0.08] pointer-events-none">
-         <img src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=2000&q=80" className="w-full h-full object-cover scale-110" alt="" />
+         <img src="https://images.unsplash.com/photo-1524492412937-df568297a941?auto=format&fit=crop&w=2000&q=80" className="w-full h-full object-cover scale-110" alt="" />
       </div>
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-orange-500/5 to-transparent pointer-events-none -z-10"></div>
 
@@ -415,20 +415,13 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
           </div>
         </div>
 
-        {/* FOUNDER FOOTER SECTION */}
-        <div className="pt-20 pb-10 text-center animate-fadeInUp" style={{ animationDelay: '1000ms' }}>
-            <div className="inline-block relative group">
-                <div className="absolute -inset-2 bg-gradient-to-r from-orange-600 to-red-600 rounded-full blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
-                <div className="relative px-12 py-6 bg-black dark:bg-[#111222] ring-1 ring-white/10 rounded-full leading-none flex flex-col items-center">
-                    <p className="neon-text text-2xl md:text-3xl font-black uppercase tracking-tighter italic">
-                        SHASHANK MISHRA
-                    </p>
-                    <p className="mt-2 text-[10px] font-black text-gray-500 uppercase tracking-[0.6em] opacity-80">
-                        The Founder of <span className="text-orange-500">BHARAT PATH</span>
-                    </p>
-                </div>
+        {/* FOUNDER FOOTER SECTION (MANDATORY) */}
+        <footer className="pt-20 pb-10 text-center border-t border-white/5 animate-fadeInUp">
+            <h2 className="text-2xl font-black italic text-gray-900 dark:text-white uppercase tracking-tighter">Shashank Mishra</h2>
+            <div className="mt-4 inline-block px-6 py-2 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-500 text-[10px] font-black uppercase tracking-widest shadow-xl">
+                Founder of Bharat Path
             </div>
-        </div>
+        </footer>
 
       </div>
       <style>{`
@@ -442,45 +435,6 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
         .shadow-3xl { box-shadow: 0 40px 100px -20px rgba(0,0,0,0.3); }
         .shadow-4xl { box-shadow: 0 50px 120px -30px rgba(0,0,0,0.5); }
         .border-3 { border-width: 3px; }
-        
-        .neon-text {
-            color: #fff;
-            text-shadow: 
-                0 0 7px #fff,
-                0 0 10px #fff,
-                0 0 21px #fff,
-                0 0 42px #f97316,
-                0 0 82px #f97316,
-                0 0 92px #f97316,
-                0 0 102px #f97316,
-                0 0 151px #f97316;
-            animation: neon-pulse 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes neon-pulse {
-            from {
-                text-shadow: 
-                    0 0 7px #fff,
-                    0 0 10px #fff,
-                    0 0 21px #fff,
-                    0 0 42px #f97316,
-                    0 0 82px #f97316,
-                    0 0 92px #f97316,
-                    0 0 102px #f97316,
-                    0 0 151px #f97316;
-            }
-            to {
-                text-shadow: 
-                    0 0 4px #fff,
-                    0 0 7px #fff,
-                    0 0 13px #fff,
-                    0 0 25px #f97316,
-                    0 0 50px #f97316,
-                    0 0 60px #f97316,
-                    0 0 70px #f97316,
-                    0 0 100px #f97316;
-            }
-        }
       `}</style>
     </div>
   );

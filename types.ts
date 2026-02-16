@@ -1,6 +1,7 @@
 export enum View {
   Dashboard = 'Dashboard',
   Map = 'Map',
+  Gallery = 'Gallery',
   Booking = 'Booking',
   Flights = 'Flights',
   Trains = 'Trains',
@@ -20,6 +21,14 @@ export enum View {
   AIStudio = 'AIStudio',
   LiveGuide = 'LiveGuide',
   Settings = 'Settings'
+}
+
+export interface GalleryImage {
+    id: string;
+    url: string;
+    caption: string;
+    location: string;
+    timestamp: number;
 }
 
 export interface UserMemory {

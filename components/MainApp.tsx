@@ -1,10 +1,10 @@
-
 import React, { useState, useCallback } from 'react';
 import { View, Notification } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Dashboard from './views/Dashboard';
 import MapView from './views/MapView';
+import Gallery from './views/Gallery';
 import Booking from './views/Booking';
 import Itinerary from './views/Itinerary';
 import Utilities from './views/Utilities';
@@ -84,6 +84,8 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
         return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
       case View.Map:
         return <MapView onAIService={handleAIService} />;
+      case View.Gallery:
+        return <Gallery />;
       case View.AIStudio:
         return <AIStudio />;
       case View.LiveGuide:

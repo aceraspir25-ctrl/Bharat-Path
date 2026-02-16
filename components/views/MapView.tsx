@@ -22,8 +22,8 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
   const markersLayerRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
 
-  // Core Registry Node: Raipur Coordinates
-  const RAIPUR_POS: [number, number] = [21.2514, 81.6296];
+  // Default Starting View: Geographic Center of Interest
+  const START_POS: [number, number] = [21.2514, 81.6296];
 
   useEffect(() => {
     if (!mapInstanceRef.current && mapContainerRef.current && window.L) {
@@ -31,7 +31,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       const map = L.map(mapContainerRef.current, {
           zoomControl: false,
           attributionControl: false
-      }).setView(RAIPUR_POS, 13); // High resolution zoom for city entry
+      }).setView(START_POS, 13);
       
       const darkTiles = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
       const lightTiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -43,8 +43,8 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       mapInstanceRef.current = map;
       markersLayerRef.current = L.layerGroup().addTo(map);
       
-      // Initialize with the special Raipur greeting node
-      L.marker(RAIPUR_POS, {
+      // Starting Greeting Node
+      L.marker(START_POS, {
           icon: L.divIcon({
               className: 'custom-div-icon',
               html: `
@@ -61,7 +61,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
       }).addTo(markersLayerRef.current)
         .bindPopup(`
           <div class="p-2 text-center">
-            <p class="font-black text-xs uppercase tracking-tight text-orange-600">Bhai, Bharat Path ab Raipur mein Live hai! 🚩</p>
+            <p class="font-black text-xs uppercase tracking-tight text-orange-600">Universal Map Active. Search any country, city, or remote village! 🌎</p>
           </div>
         `, {
             className: 'custom-popup',
@@ -97,8 +97,8 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
     setIsFetchingWisdom(true);
     if (mapInstanceRef.current) {
         mapInstanceRef.current.flyTo([m.lat, m.lng], 16, { 
-            duration: 1.5,
-            easeLinearity: 0.25
+            duration: 1.8,
+            easeLinearity: 0.1
         });
     }
     try {
@@ -110,8 +110,6 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
   useEffect(() => {
     if (mapInstanceRef.current && markersLayerRef.current && window.L) {
       const L = window.L;
-      // Note: We don't clear the base Raipur marker if it's the initial state
-      // but search results will populate the layer.
       
       if (markers.length > 0) {
         markersLayerRef.current.clearLayers();
@@ -142,7 +140,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
         });
 
         if (!selectedMarkerId) {
-            mapInstanceRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 15 });
+            mapInstanceRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 });
         }
       }
     }
@@ -189,25 +187,26 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                     iconSize: [20, 20], 
                     iconAnchor: [10, 10] 
                 }) 
-            }).addTo(mapInstanceRef.current).bindPopup('You are here').openPopup();
+            }).addTo(mapInstanceRef.current).bindPopup('Local Node Detected').openPopup();
         }
         setIsLocating(false);
     }, () => setIsLocating(false));
   };
 
   const categories = [
-      { id: 'stores', label: 'Stores', icon: '🛒', query: 'Shops near Raipur' },
-      { id: 'food', label: 'Food', icon: '🥘', query: 'Vegetarian food spots in Raipur' },
-      { id: 'medical', label: 'Medical', icon: '🏥', query: 'Hospitals in Raipur city' },
-      { id: 'stays', label: 'Stays', icon: '🏨', query: 'Hotels in Raipur Chhattisgarh' },
+      { id: 'stores', label: 'Local Shops', icon: '🛒', query: 'Shops in the area' },
+      { id: 'food', label: 'Restaurants', icon: '🥘', query: 'Best restaurants globally' },
+      { id: 'medical', label: 'Medical', icon: '🏥', query: 'Hospitals nearby' },
+      { id: 'stays', label: 'Stays', icon: '🏨', query: 'Luxury hotels and heritage stays' },
+      { id: 'attractions', label: 'Explore', icon: '🏛️', query: 'Famous world landmarks and sights' },
   ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-12 px-4 md:px-0">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-            <h1 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">Spatial Intelligence</h1>
-            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.5em] px-1">Universal Neural Mapping Protocol</p>
+            <h1 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">Global Path Map</h1>
+            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.5em] px-1">Universal Spatial Intelligence Active</p>
         </div>
         
         <div className="flex-1 max-w-2xl relative group">
@@ -216,7 +215,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                 value={searchQuery} 
                 onChange={(e) => setSearchQuery(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Find any city, village, or store worldwide..." 
+                placeholder="Search any global node (e.g. Kyoto, London, Hampi, Paris)..." 
                 className="w-full bg-white dark:bg-[#1a1c2e] border-4 border-transparent dark:border-white/5 rounded-[2.5rem] py-5 px-14 text-gray-900 dark:text-white font-bold shadow-3xl focus:border-orange-500 outline-none transition-all text-lg" 
             />
             <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
@@ -226,7 +225,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                 onClick={() => handleSearch()}
                 className="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 text-white px-6 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95"
             >
-                UPLINK
+                GLOBE SEARCH
             </button>
         </div>
       </header>
@@ -248,7 +247,7 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
         <div className="lg:col-span-3 h-full overflow-hidden flex flex-col bg-white/60 dark:bg-[#111222]/80 backdrop-blur-xl rounded-[3.5rem] border border-gray-100 dark:border-white/5 shadow-3xl">
             <div className="p-8 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20">
                 <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] flex items-center justify-between">
-                    Registry Results
+                    Worldwide Registry
                     <span className="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-[9px] font-black">{markers.length}</span>
                 </h3>
             </div>
@@ -261,43 +260,29 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                     >
                         <div className="flex justify-between items-center mb-1">
                             <span className="text-[11px] font-black uppercase tracking-tight line-clamp-1 group-hover/btn:text-orange-500 transition-colors">{m.name}</span>
-                            <span className="text-[9px] opacity-40">📍</span>
+                            <span className="text-[9px] opacity-40">🌍</span>
                         </div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 truncate">Neural Coordinate Sync</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 truncate">Global Coordinate Pulse</p>
                     </button>
                 )) : (
                     <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-10">
                         <div className="w-24 h-24 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-pulse">🛰️</div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">Raipur Node Registry synchronized. Search to explore more world nodes.</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">Search globally to populate the path registry. Enter any world location above.</p>
                     </div>
                 )}
             </div>
         </div>
 
         <div className="lg:col-span-6 relative">
-            {/* Raipur Initialized Map Container */}
-            <div className="w-full h-full rounded-[4rem] overflow-hidden shadow-4xl border-4 border-white/50 dark:border-white/5 bg-[#111222]" style={{ height: "100%", width: "100%" }}>
+            <div className="w-full h-full rounded-[4rem] overflow-hidden shadow-4xl border-4 border-white/50 dark:border-white/5 bg-[#111222]">
                 <div ref={mapContainerRef} className="w-full h-full z-0"></div>
                 
                 <div className="absolute top-8 right-8 z-[1000] flex flex-col gap-4">
                     <button 
                         onClick={handleLocateMe} 
                         className={`p-5 bg-white dark:bg-[#1a1c2e] rounded-3xl shadow-4xl text-blue-500 border border-gray-100 dark:border-white/10 hover:scale-110 transition-all ${isLocating ? 'animate-pulse' : ''}`}
-                        title="Locate My Node"
                     >
                         <CompassIcon className="w-6 h-6" />
-                    </button>
-                    <button 
-                        onClick={() => mapInstanceRef.current?.zoomIn()} 
-                        className="p-4 bg-white dark:bg-[#1a1c2e] rounded-2xl shadow-4xl text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-white/10 font-black text-xl hover:text-orange-500"
-                    >
-                        +
-                    </button>
-                    <button 
-                        onClick={() => mapInstanceRef.current?.zoomOut()} 
-                        className="p-4 bg-white dark:bg-[#1a1c2e] rounded-2xl shadow-4xl text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-white/10 font-black text-xl hover:text-orange-500"
-                    >
-                        −
                     </button>
                 </div>
             </div>
@@ -307,14 +292,14 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
             {!selectedMarkerId ? (
                 <div className="h-full flex flex-col justify-center items-center text-center opacity-40">
                     <div className="w-24 h-24 bg-orange-500/10 rounded-[2.5rem] flex items-center justify-center text-orange-500 text-5xl shadow-inner animate-bounceSubtle">🧭</div>
-                    <h4 className="text-sm font-black uppercase mt-6 tracking-widest text-gray-500">Wisdom Hub</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 leading-relaxed">Raipur is now live on the Path! Select any node to decode its historical and local metadata.</p>
+                    <h4 className="text-sm font-black uppercase mt-6 tracking-widest text-gray-500">Universal Navigator</h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 leading-relaxed">Selecting a global node will synchronize cultural and historical metadata from our universal wisdom hub.</p>
                 </div>
             ) : (
                 <div className="animate-fadeIn space-y-10">
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-full text-[9px] font-black uppercase tracking-widest">Active Insight</span>
+                            <span className="px-3 py-1 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-full text-[9px] font-black uppercase tracking-widest">Universal Insight</span>
                         </div>
                         <h3 className="text-3xl font-black uppercase tracking-tighter leading-none text-gray-900 dark:text-white">{markers.find(m => m.id === selectedMarkerId)?.name}</h3>
                     </div>
@@ -325,17 +310,17 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                                 <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
                                 <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🧠</div>
                             </div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.5em]">Decoding Wisdom...</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.5em]">Synchronizing World Wisdom...</p>
                         </div>
                     ) : placeInfo && (
                         <div className="space-y-10">
                             <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Historical Background</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Historical Narrative</h4>
                                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed italic border-l-4 border-orange-500/40 pl-6">{placeInfo.history}</p>
                             </div>
                             
                             <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Registry Highlights</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Local Global Nodes</h4>
                                 <div className="space-y-3">
                                     {placeInfo.attractions.slice(0, 3).map((attr, idx) => (
                                         <div key={idx} className="bg-gray-50/50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5 transition-all hover:border-orange-500/30">
@@ -346,32 +331,19 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
                                 </div>
                             </div>
 
-                            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-white/5">
-                                <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Verification Node</h5>
-                                <a 
-                                    href={markers.find(m => m.id === selectedMarkerId)?.uri} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-between p-4 bg-orange-500/5 rounded-2xl border border-orange-500/20 group/link transition-all hover:bg-orange-500 hover:text-white"
-                                >
-                                    <span className="text-[10px] font-black uppercase tracking-widest group-hover/link:text-white text-orange-500">Open Digital Twin</span>
-                                    <ExternalLinkIcon className="w-4 h-4" />
-                                </a>
-                            </div>
-
                             <div className="bg-blue-600/5 p-8 rounded-[2.5rem] border border-blue-600/10">
-                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Local Ethics</h4>
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Regional Ethics</h4>
                                 <p className="text-xs text-blue-900 dark:text-blue-200 font-bold italic leading-relaxed">"{placeInfo.customs}"</p>
                             </div>
 
                             <div className="pt-6 pb-12">
                                 <a 
                                     href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(markers.find(m => m.id === selectedMarkerId)?.name || '')}`}
-                                    target="_blank"
+                                    target="_blank" 
                                     rel="noopener noreferrer"
                                     className="w-full py-5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-[0.3em] rounded-[2rem] shadow-3xl shadow-orange-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-4"
                                 >
-                                    <RouteIcon className="w-5 h-5" /> <span>Navigate To Node</span>
+                                    <RouteIcon className="w-5 h-5" /> <span>International Route</span>
                                 </a>
                             </div>
                         </div>
@@ -391,23 +363,13 @@ const MapView: React.FC<{ onAIService: (fn: () => Promise<any>) => Promise<any> 
         .marker-wrapper.active .marker-pin { background: #3b82f6; }
         .marker-aura { position: absolute; width: 60px; height: 60px; background: rgba(249, 115, 22, 0.2); border-radius: 50%; animation: aura-expand 2s infinite; z-index: 1; }
         @keyframes aura-expand { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
-        .user-beacon { width: 18px; height: 18px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); animation: beacon-pulse 1.5s infinite; }
-        @keyframes beacon-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); } 100% { transform: scale(1); } }
         .leaflet-container { background: #111222 !important; outline: none; }
         .shadow-3xl { box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.4); }
         .shadow-4xl { box-shadow: 0 50px 120px -30px rgba(0, 0, 0, 0.6); }
         @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .animate-bounceSubtle { animation: bounceSubtle 3s ease-in-out infinite; }
-        .leaflet-popup-content-wrapper { 
-            border-radius: 1.5rem !important; 
-            padding: 4px !important; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
-            border: 2px solid #f97316;
-        }
-        .dark .leaflet-popup-content-wrapper {
-            background: #111222 !important;
-            color: white !important;
-        }
+        .leaflet-popup-content-wrapper { border-radius: 1.5rem !important; border: 2px solid #f97316; }
+        .dark .leaflet-popup-content-wrapper { background: #111222 !important; color: white !important; }
       `}</style>
     </div>
   );

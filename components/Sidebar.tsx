@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { View } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -43,6 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onLogout, 
   const navItems = [
     { id: View.Dashboard, label: 'Dashboard', icon: <DashboardIcon /> },
     { id: View.Map, label: 'Interactive Map', icon: <MapIcon /> },
+    { id: View.Gallery, label: 'Explorer\'s Vault', icon: <div className="text-lg">🖼️</div> },
     { id: View.AIStudio, label: 'AI Media Studio', icon: <SparklesIcon />, premium: true },
     { id: View.LiveGuide, label: 'Live AI Guide', icon: <div className="w-5 h-5 flex items-center justify-center">🎤</div>, premium: true },
     { id: View.Itinerary, label: 'My Itinerary', icon: <ItineraryIcon /> },

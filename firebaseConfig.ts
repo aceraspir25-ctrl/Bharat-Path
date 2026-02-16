@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getStorage } from "firebase/storage"; 
 import { getFirestore } from "firebase/firestore";
 
@@ -19,8 +18,8 @@ const firebaseConfig = {
 
 // Initialize Core Application Node
 const app = initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
+// Fix: Removed problematic analytics initialization as it was causing a module export error and was unused.
 export const storage = getStorage(app);
 export const db = getFirestore(app);
 export default app;
