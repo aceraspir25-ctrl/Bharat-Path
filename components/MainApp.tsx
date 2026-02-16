@@ -4,13 +4,12 @@ import { View } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
-// View Imports
+// Core View Imports
 import Dashboard from './views/Dashboard';
 import MapView from './views/MapView';
-import Community from './views/CommunityHub'; // Updated to your new Hub
+// import Community from './views/CommunityHub'; // Temporarily disabled to prevent build error
 import AIStudio from './views/AIStudio';
 import Settings from './views/Settings';
-// ... other views (ensure paths are correct in Studio)
 
 import { useUser } from '../contexts/UserContext';
 import AIChatbot from './AIChatbot';
@@ -27,55 +26,53 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const { profile } = useUser();
 
-  // --- WORLDWIDE ATTRACTIVE FEATURE: Neural Notification Logic ---
+  // Neural Notification Logic
   const addNotification = useCallback((notif: any) => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [
       { ...notif, id, timestamp: Date.now(), read: false },
       ...prev
-    ].slice(0, 5)); // Keep only top 5 for global performance
+    ].slice(0, 5));
   }, []);
 
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
-  // AI Uplink Handler with Global Quota Protection
+  // AI Uplink Handler
   const handleAIService = useCallback(async (action: () => Promise<any>) => {
     try {
       return await action();
     } catch (error: any) {
       addNotification({
         title: "Neural Sync Alert",
-        message: "Path Intelligence is optimizing. Retrying uplink...",
+        message: "Path Intelligence optimizing...",
         type: 'alert'
       });
       throw error;
     }
   }, [addNotification]);
 
-  // --- ATTRACTIVE FEATURE: View Transition Wrapper ---
+  // View Transition Logic
   const renderView = useMemo(() => {
-    const views: Record<string, React.ReactNode> = {
-      [View.Dashboard]: <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />,
-      [View.Map]: <MapView onAIService={handleAIService} />,
-      [View.Community]: <Community />, // Your new Global Hub
-      [View.AIStudio]: <AIStudio />,
-      [View.Settings]: <Settings toggleTheme={toggleTheme} />,
-      // Add other views here similarly
-    };
-
-    return (
-      <div className="animate-slideIn relative h-full">
-        {views[activeView] || <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />}
-      </div>
-    );
+    switch (activeView) {
+      case View.Dashboard:
+        return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
+      case View.Map:
+        return <MapView onAIService={handleAIService} />;
+      case View.AIStudio:
+        return <AIStudio />;
+      case View.Settings:
+        return <Settings toggleTheme={toggleTheme} />;
+      default:
+        return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
+    }
   }, [activeView, handleAIService, toggleTheme]);
 
   return (
-    <div className="flex h-screen bg-[#0a0b14] overflow-hidden font-sans selection:bg-orange-500/30">
+    <div className="flex h-screen bg-[#0a0b14] overflow-hidden font-sans selection:bg-orange-500/30 text-white">
       
-      {/* 1. Global Sidebar - Permanent on Desktop, Drawer on Mobile */}
+      {/* 1. Global Sidebar */}
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
@@ -98,14 +95,14 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
           onLogout={onLogout}
         />
 
-        {/* Dynamic Content View with Global Padding */}
+        {/* Dynamic Content View */}
         <div className="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar relative">
-          {/* Founder's Overlay - Subtle branding */}
+          {/* Subtle Branding Overlay */}
           <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none select-none">
             <h1 className="text-9xl font-black italic">BHARAT PATH</h1>
           </div>
           
-          <div className="p-4 md:p-10 max-w-[1600px] mx-auto">
+          <div className="p-4 md:p-10 max-w-[1600px] mx-auto animate-slideIn">
             {renderView}
           </div>
         </div>
@@ -114,7 +111,6 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
       {/* 3. Global AI Assistant */}
       <AIChatbot />
 
-      {/* Worldwide Attractive Styles */}
       <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateX(10px); }
