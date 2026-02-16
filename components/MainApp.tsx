@@ -7,7 +7,6 @@ import Header from './Header';
 // Core View Imports
 import Dashboard from './views/Dashboard';
 import MapView from './views/MapView';
-// import Community from './views/CommunityHub'; // Temporarily disabled to prevent build error
 import AIStudio from './views/AIStudio';
 import Settings from './views/Settings';
 
