@@ -86,6 +86,7 @@ export interface AIBookingSuggestion {
     type: 'Hotel' | 'Restaurant';
     description: string;
     rating: number;
+    availableDate?: string;
 }
 
 export interface SearchSuggestion {
@@ -139,10 +140,16 @@ export interface RouteStep {
 
 export interface RouteDetails {
   summary: string;
-  steps: RouteStep[];
   totalDistance: string;
   totalDuration: string;
   culturalNodesCount?: number;
+  steps: RouteStep[];
+}
+
+export interface RouteStrategies {
+    fastest: RouteDetails;
+    scenic: RouteDetails;
+    cultural: RouteDetails;
 }
 
 export interface Post {

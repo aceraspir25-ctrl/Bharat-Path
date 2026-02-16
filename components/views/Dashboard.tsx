@@ -118,7 +118,8 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
       return searchResults.suggestions.filter(s => {
           const matchesCategory = filters.category === 'All' || s.type === filters.category;
           const matchesRating = s.rating >= filters.minRating;
-          return matchesCategory && matchesRating;
+          const matchesDate = !filters.date || !s.availableDate || s.availableDate === filters.date;
+          return matchesCategory && matchesRating && matchesDate;
       });
   }, [searchResults, filters]);
 
@@ -348,7 +349,12 @@ const Dashboard: React.FC<{ setActiveView: (view: View) => void; onAIService: (f
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="space-y-1">
                                             <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight text-lg group/card:text-orange-500 transition-colors">{s.name}</h4>
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{s.type}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{s.type}</p>
+                                                {s.availableDate && (
+                                                    <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">Available: {s.availableDate}</p>
+                                                )}
+                                            </div>
                                         </div>
                                         <span className="text-[10px] font-black text-orange-500 px-3 py-1 bg-orange-500/10 rounded-xl border border-orange-500/20">{s.rating} ★</span>
                                     </div>

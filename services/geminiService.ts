@@ -1,16 +1,28 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { AIResponse, PlaceInfo, RouteDetails, GroundingChunk, Booking, MapMarker, GlobalIntelligence, TransitStatus, UserProfile, SearchSuggestion } from '../types';
+import { 
+    AIResponse, 
+    PlaceInfo, 
+    RouteDetails, 
+    RouteStrategies, 
+    GroundingChunk, 
+    Booking, 
+    MapMarker, 
+    GlobalIntelligence, 
+    TransitStatus, 
+    UserProfile, 
+    SearchSuggestion 
+} from '../types';
 
 const CORE_PERSONA = `You are the 'Bharat Path Core Intelligence'.
 Memory Protocol: 
-1. Maintain a persistent profile for each explorer based on the provided [GLOBAL PROFILE METADATA].
+1. Maintain a persistent profile for each explorer based on the provided metadata.
 2. Track travel patterns and community contributions.
 3. Strictly prioritize Indian hospitality (Atithi Devo Bhava) and legendary vegetarian food options globally.`;
 
 const getMetadataString = (profile: UserProfile) => `
 [GLOBAL PROFILE METADATA]
 Explorer: ${profile.name}
-Interests: ${profile.memory.interests.join(', ')}
+Interests: ${profile.memory?.interests?.join(', ') || 'General Travel'}
 Tier: ${profile.subscriptionTier}
 `;
 
@@ -34,31 +46,6 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDel
     }
     throw lastError;
 }
-
-export const getSmartSuggestions = async (input: string): Promise<SearchSuggestion[]> => {
-    return callWithRetry(async () => {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Suggest 5 diverse travel nodes for query: "${input}". Include unique local vegetarian specialties for each.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            name: { type: Type.STRING },
-                            type: { type: Type.STRING },
-                            local_veg_specialty: { type: Type.STRING }
-                        }
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text || "[]");
-    });
-};
 
 export const getAIResponse = async (query: string, profile: UserProfile, options: { useThinking?: boolean } = {}): Promise<AIResponse> => {
     return callWithRetry(async () => {
@@ -120,144 +107,96 @@ export const searchPlacesWithAI = async (query: string, profile: UserProfile, ce
     });
 };
 
-export const translateText = async (text: string, targetLang: string, sourceLang?: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = sourceLang && sourceLang !== 'auto' 
-        ? `Translate from ${sourceLang} to ${targetLang}: "${text}". Return only the result.`
-        : `Translate to ${targetLang}: "${text}". Return only the result.`
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-    });
-    return response.text?.trim() || "";
-};
-
-export const generateSpeech = async (text: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text }] }],
-        config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-        }
-    });
-    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
-};
-
-export const encodePCM = (bytes: Uint8Array) => {
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-};
-
-export const decodePCM = (base64: string) => {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-    return bytes;
-};
-
-export const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
-    const dataInt16 = new Int16Array(data.buffer);
-    const frameCount = dataInt16.length / numChannels;
-    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-    for (let channel = 0; channel < numChannels; channel++) {
-        const channelData = buffer.getChannelData(channel);
-        for (let i = 0; i < frameCount; i++) {
-            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-        }
-    }
-    return buffer;
-};
-
-export const playRawPcm = async (base64Audio: string) => {
-    if (!base64Audio) return;
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    const buffer = await decodeAudioData(decodePCM(base64Audio), ctx, 24000, 1);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start();
-};
-
 export const getPlaceInformation = async (placeName: string, profile: UserProfile): Promise<PlaceInfo> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Wisdom Hub interrogation for: "${placeName}". Return historical, cultural and tourist metadata as JSON.`,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    history: { type: Type.STRING },
-                    attractions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },
-                    customs: { type: Type.STRING }
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Wisdom Hub interrogation for: "${placeName}". Return historical, cultural and tourist metadata as JSON.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        history: { type: Type.STRING },
+                        attractions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },
+                        customs: { type: Type.STRING }
+                    }
                 }
             }
-        }
+        });
+        return JSON.parse(response.text || "{}");
     });
-    return JSON.parse(response.text || "{}");
 };
 
-export const getRouteDetails = async (start: any, dest: string, preference: string, profile: UserProfile, options: any): Promise<RouteDetails> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const startStr = start.lat ? `${start.lat},${start.lon}` : start;
-    
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Act as a Master Path Architect for 'Bharat Path'. Synthesize a specialized ${preference} route from "${startStr}" to "${dest}".
+export const getRouteStrategies = async (start: string, dest: string, profile: UserProfile, options: any): Promise<RouteStrategies> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        Strategy Requirements:
-        - If 'fastest': Prioritize high-velocity corridors, expressways, and time optimization.
-        - If 'scenic': Prioritize natural aesthetic, river crossings, mountain views, and visually iconic path nodes.
-        - If 'cultural': Prioritize spiritual hubs, ancient temples, UNESCO heritage, local bazaars, and historic neighborhoods.
-        
-        Modifiers:
-        - Avoid Tolls: ${options.avoidTolls}
-        - High Heritage Focus: ${options.historicalFocus}
-        
-        User Explorer Metadata:
-        - Name: ${profile.name}
-        - Interests: ${profile.memory.interests.join(', ')}
-        
-        Return the result in strict JSON format.`,
-        config: {
-            thinkingConfig: { thinkingBudget: 8000 },
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    summary: { type: Type.STRING, description: "A poetic and technical summary of why this path matches the protocol." },
-                    totalDistance: { type: Type.STRING },
-                    totalDuration: { type: Type.STRING },
-                    culturalNodesCount: { type: Type.NUMBER },
-                    steps: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                instruction: { type: Type.STRING },
-                                distance: { type: Type.STRING },
-                                duration: { type: Type.STRING }
-                            },
-                            required: ["instruction", "distance", "duration"]
-                        }
-                    }
+        const responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                fastest: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
                 },
-                required: ["summary", "totalDistance", "totalDuration", "steps"]
+                scenic: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
+                },
+                cultural: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        culturalNodesCount: { type: Type.NUMBER },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
+                }
+            },
+            required: ["fastest", "scenic", "cultural"]
+        };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: `Act as a Master Path Architect for 'Bharat Path'. Synthesize THREE specialized route strategies from "${start}" to "${dest}":
+            1. 'fastest': Prioritize high-velocity corridors, expressways, and time-optimized arcs.
+            2. 'scenic': Prioritize natural beauty, mountain vistas, river views, and aesthetic landmarks.
+            3. 'cultural': Prioritize spiritual hubs, ancient temples, UNESCO heritage, and local bazaars.
+            
+            User Explorer Context: ${profile.name} who is interested in ${profile.memory.interests.join(', ')}.
+            Modifiers: Avoid Tolls: ${options.avoidTolls}, High Heritage: ${options.historicalFocus}.
+            Return result in strict JSON.`,
+            config: {
+                thinkingConfig: { thinkingBudget: 8000 },
+                responseMimeType: "application/json",
+                responseSchema: responseSchema as any
             }
-        }
+        });
+
+        return JSON.parse(response.text || "{}");
     });
-    return JSON.parse(response.text || "{}");
 };
 
 export const getGlobalIntelligence = async (lat: number, lng: number, profile: UserProfile): Promise<GlobalIntelligence> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Local Path Intelligence for [${lat}, ${lng}]. Essentials, safety and local context.`,
+        contents: `Local Path Intelligence for [${lat}, ${lng}]. Essentials, safety and local context for explorer ${profile.name}.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -290,11 +229,72 @@ export const getGlobalIntelligence = async (lat: number, lng: number, profile: U
     return JSON.parse(response.text || "{}");
 };
 
+export const translateText = async (text: string, targetLang: string, sourceLang?: string): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const prompt = sourceLang && sourceLang !== 'auto' 
+        ? `Translate from ${sourceLang} to ${targetLang}: "${text}". Return only result.`
+        : `Translate to ${targetLang}: "${text}". Return only result.`;
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+    });
+    return response.text?.trim() || "";
+};
+
+export const generateSpeech = async (text: string): Promise<string> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text }] }],
+        config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+        }
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
+};
+
+export const encodePCM = (bytes: Uint8Array) => {
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+};
+
+export const decodePCM = (base64: string) => {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    return bytes;
+};
+
+export const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
+    }
+    return buffer;
+};
+
+export const playRawPcm = async (base64Audio: string) => {
+    if (!base64Audio) return;
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const buffer = await decodeAudioData(decodePCM(base64Audio), ctx, 24000, 1);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start();
+};
+
 export const getHotelSuggestions = async (loc: string, profile: UserProfile): Promise<any[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Vegetarian-first hotel suggestions in ${loc}. Focus on heritage and comfort.`,
+        contents: `Vegetarian-first hotel suggestions in ${loc} for explorer ${profile.name}. Focus on heritage.`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -317,7 +317,7 @@ export const getItinerarySuggestions = async (bookings: Booking[], profile: User
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Suggest 3 activities based on this itinerary: ${JSON.stringify(bookings)}`,
+        contents: `Suggest 3 activities for ${profile.name} based on itinerary: ${JSON.stringify(bookings)}`,
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -333,19 +333,6 @@ export const getItinerarySuggestions = async (bookings: Booking[], profile: User
         }
     });
     return JSON.parse(response.text || "[]");
-};
-
-export const getFlightStatus = async (no: string, date: string): Promise<{ text: string; groundingChunks: GroundingChunk[] }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Real-time status for flight ${no} on ${date}. Terminal, gate and T-minus status.`,
-        config: { tools: [{ googleSearch: {} }] }
-    });
-    return {
-        text: response.text || "Flight node synchronization pending.",
-        groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
-    };
 };
 
 export const getUnifiedTransitStatus = async (id: string, profile: UserProfile): Promise<TransitStatus> => {
@@ -373,6 +360,58 @@ export const getUnifiedTransitStatus = async (id: string, profile: UserProfile):
         }
     });
     return JSON.parse(response.text || "{}");
+};
+
+// --- FIX: Added missing exports getSmartSuggestions and getFlightStatus ---
+
+/**
+ * Generates smart search suggestions based on the user's current search query.
+ */
+export const getSmartSuggestions = async (query: string): Promise<SearchSuggestion[]> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Generate 3 search suggestions for travel query: "${query}". Include a local vegetarian specialty for each suggestion.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING },
+                            type: { type: Type.STRING },
+                            local_veg_specialty: { type: Type.STRING }
+                        },
+                        required: ["name", "type", "local_veg_specialty"]
+                    }
+                }
+            }
+        });
+        return JSON.parse(response.text || "[]");
+    });
+};
+
+/**
+ * Queries the current status of a flight using Google Search grounding.
+ */
+export const getFlightStatus = async (flightNumber: string, date: string): Promise<{ text: string; groundingChunks: GroundingChunk[] }> => {
+    return callWithRetry(async () => {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Retrieve current status for flight ${flightNumber} on ${date}. Summary of arrival, delay, and terminal/gate nodes.`,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
+
+        return { 
+            text: response.text || "Neural registry uplink failed.",
+            groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
+        };
+    });
 };
 
 export const generateAIVideo = async (prompt: string, base64Image: string, mimeType: string, aspectRatio: '16:9' | '9:16'): Promise<string> => {
@@ -405,7 +444,7 @@ export const generateAIImage = async (prompt: string, aspectRatio: string, size:
     for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    throw new Error("Neural image synthesis failed.");
+    throw new Error("Neural synthesis failed.");
 };
 
 export const editAIImage = async (prompt: string, base64Image: string, mimeType: string): Promise<string> => {
@@ -422,7 +461,7 @@ export const editAIImage = async (prompt: string, base64Image: string, mimeType:
     for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    throw new Error("Path editing failed.");
+    throw new Error("Editing failed.");
 };
 
 export const analyzeMedia = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
@@ -431,14 +470,14 @@ export const analyzeMedia = async (base64Data: string, mimeType: string, prompt:
         model: 'gemini-3-pro-preview',
         contents: { parts: [{ inlineData: { data: base64Data, mimeType } }, { text: prompt }] }
     });
-    return response.text || "Media analysis registry empty.";
+    return response.text || "Analysis registry empty.";
 };
 
 export const transcribeAudioFromBase64 = async (base64Audio: string, mimeType: string): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: { parts: [{ inlineData: { data: base64Audio, mimeType } }, { text: "Transcribe exactly what you hear." }] }
+        contents: { parts: [{ inlineData: { data: base64Audio, mimeType } }, { text: "Transcribe exactly." }] }
     });
     return response.text || "No voice activity detected.";
 };
@@ -451,7 +490,7 @@ export const connectLiveGuide = async (callbacks: any) => {
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-            systemInstruction: 'You are Bharat, a warm Indian travel companion. Guide the user through their global path.'
+            systemInstruction: 'You are Bharat, a warm Indian travel companion.'
         }
     });
 };
