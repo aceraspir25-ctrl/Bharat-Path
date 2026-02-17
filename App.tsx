@@ -1,21 +1,19 @@
 // @ts-nocheck
-import React, { useState, useCallback, useEffect } from 'react';
-import HomePage from './components/HomePage';
+import React, { useState } from 'react';
 import MainApp from './components/MainApp';
 import AuthPage from './components/AuthPage';
 import WelcomePage from './components/WelcomePage';
-import { SearchProvider } from './contexts/SearchContext';
-import { LanguageProvider } from './contexts/LanguageContext';
+import HomePage from './components/HomePage';
 import { UserProvider } from './contexts/UserContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { SearchProvider } from './contexts/SearchContext';
 
 const App: React.FC = () => {
-  // Authentication & Navigation States
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [showAuth, setShowAuth] = useState(false);
 
-  // Logic to handle screen transitions
-  const handleAuthSuccess = () => {
+  const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     setShowWelcome(true);
   };
@@ -24,22 +22,20 @@ const App: React.FC = () => {
     setShowWelcome(false);
   };
 
-  // Main Router Logic
   const renderContent = () => {
     if (!isAuthenticated) {
-      return <AuthPage onAuthSuccess={handleAuthSuccess} />;
+      if (showAuth) return <AuthPage onLoginSuccess={handleLoginSuccess} onBack={() => setShowAuth(false)} />;
+      return <HomePage onLogin={handleLoginSuccess} onShowAuth={() => setShowAuth(true)} />;
     }
-    if (showWelcome) {
-      return <WelcomePage onComplete={handleWelcomeComplete} />;
-    }
-    return <MainApp />;
+    if (showWelcome) return <WelcomePage onComplete={handleWelcomeComplete} />;
+    return <MainApp onLogout={() => setIsAuthenticated(false)} />;
   };
 
   return (
     <UserProvider>
       <LanguageProvider>
         <SearchProvider>
-          <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#0F111A] text-white' : 'bg-gray-50 text-gray-800'} font-sans transition-colors duration-500`}>
+          <div className="min-h-screen bg-[#0F111A] text-white font-sans transition-colors duration-500">
             {renderContent()}
           </div>
         </SearchProvider>
