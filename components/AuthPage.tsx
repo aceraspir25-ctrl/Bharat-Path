@@ -80,5 +80,4 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onBack }) => {
     </div>
   );
 };
-
 export default AuthPage;

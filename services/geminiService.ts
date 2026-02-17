@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { 
     AIResponse, 
@@ -70,6 +71,22 @@ export const getAIResponse = async (query: string, profile: UserProfile, options
             groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
         };
     });
+};
+
+export const getAIResponseStream = async function* (query: string, profile: UserProfile) {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const responseStream = await ai.models.generateContentStream({
+        model: 'gemini-3-flash-preview',
+        contents: query,
+        config: {
+            systemInstruction: `${CORE_PERSONA}\n${getMetadataString(profile)}`,
+            tools: [{ googleSearch: {} }]
+        }
+    });
+
+    for await (const chunk of responseStream) {
+        yield chunk.text;
+    }
 };
 
 export const searchPlacesWithAI = async (query: string, profile: UserProfile, center?: { lat: number; lng: number }): Promise<any> => {
