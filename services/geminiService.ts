@@ -1,22 +1,34 @@
 // @ts-nocheck
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { 
-    AIResponse, PlaceInfo, RouteStrategies, MapMarker, 
-    GlobalIntelligence, TransitStatus, UserProfile, 
-    SearchSuggestion, Booking, GroundingChunk 
+    AIResponse, 
+    PlaceInfo, 
+    RouteStrategies, 
+    MapMarker, 
+    GlobalIntelligence, 
+    TransitStatus, 
+    UserProfile, 
+    SearchSuggestion, 
+    Booking, 
+    GroundingChunk 
 } from '../types';
 
-// API Key Configuration for Vite/IDX
-const API_KEY = import.meta.env.VITE_API_KEY;
-const genAI = new GoogleGenAI(API_KEY);
+// API Key Configuration - must use process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const CORE_PERSONA = `You are the 'Bharat Path Core Intelligence'.
 Memory Protocol: 
-1. Maintain a persistent profile for each explorer.
-2. Strictly prioritize Indian hospitality (Atithi Devo Bhava) and legendary vegetarian food globally.
-3. Be a global guide from Raipur's local streets to international wonders.`;
+1. Maintain a persistent profile for each explorer based on the provided metadata.
+2. Track travel patterns and community contributions.
+3. Strictly prioritize Indian hospitality (Atithi Devo Bhava) and legendary vegetarian food options globally.`;
 
-// --- CORE UTILITY: Call With Retry (For Raipur's varying network & API limits) ---
+const getMetadataString = (profile: UserProfile) => `
+[GLOBAL PROFILE METADATA]
+Explorer: ${profile.name}
+Interests: ${profile.memory?.interests?.join(', ') || 'General Travel'}
+Tier: ${profile.subscriptionTier}
+`;
+
 async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 1500): Promise<T> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
@@ -24,9 +36,12 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDel
             return await fn();
         } catch (error: any) {
             lastError = error;
-            const isRateLimit = error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED');
+            const errorMsg = error.message || "";
+            const isRateLimit = errorMsg.includes('429') || error.status === 429 || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
+            
             if (isRateLimit && i < maxRetries - 1) {
-                await new Promise(r => setTimeout(r, initialDelay * Math.pow(2, i)));
+                const delay = initialDelay * Math.pow(2, i);
+                await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
             throw error;
@@ -35,89 +50,189 @@ async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDel
     throw lastError;
 }
 
-// --- 1. GENERAL AI RESPONSE (Thinking & Flash) ---
 export const getAIResponse = async (query: string, profile: UserProfile, options: { useThinking?: boolean } = {}): Promise<AIResponse> => {
     return callWithRetry(async () => {
-        const model = genAI.getGenerativeModel({ 
-            model: options.useThinking ? 'gemini-2.0-flash-thinking-exp' : 'gemini-1.5-flash',
-            systemInstruction: CORE_PERSONA + `\nExplorer: ${profile.name}`
+        const response = await ai.models.generateContent({
+            model: options.useThinking ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview',
+            contents: query,
+            config: {
+                systemInstruction: `${CORE_PERSONA}\n${getMetadataString(profile)}`,
+                tools: [{ googleSearch: {} }],
+                ...(options.useThinking ? { thinkingConfig: { thinkingBudget: 16000 } } : {})
+            }
         });
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: query }] }],
-            tools: [{ googleSearch: {} }]
-        });
+
         return { 
-            story: result.response.text(),
-            groundingChunks: (result.response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
+            story: response.text,
+            groundingChunks: (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[]
         };
     });
 };
 
-// --- 2. GLOBAL MAPPING (Spatial Intelligence) ---
+export const getAIResponseStream = async function* (query: string, profile: UserProfile) {
+    const responseStream = await ai.models.generateContentStream({
+        model: 'gemini-3-flash-preview',
+        contents: query,
+        config: {
+            systemInstruction: `${CORE_PERSONA}\n${getMetadataString(profile)}`,
+            tools: [{ googleSearch: {} }]
+        }
+    });
+
+    for await (const chunk of responseStream) {
+        yield chunk.text;
+    }
+};
+
 export const searchPlacesWithAI = async (query: string, profile: UserProfile, center?: { lat: number; lng: number }): Promise<any> => {
     return callWithRetry(async () => {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(`Locate markers for: "${query}". Global Search focus.`);
-        const metadata = result.response.candidates?.[0]?.groundingMetadata;
+        const config: any = { 
+            tools: [{ googleMaps: {} }] 
+        };
+        
+        if (center) {
+            config.toolConfig = { 
+                retrievalConfig: { 
+                    latLng: { 
+                        latitude: center.lat, 
+                        longitude: center.lng 
+                    } 
+                } 
+            };
+        }
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-lite-latest",
+            contents: `Universal mapping request: Locate markers for: "${query}". Search across ALL cities and urban landmarks globally.`,
+            config
+        });
+        
+        const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as any[];
         const markers: MapMarker[] = [];
-        metadata?.groundingChunks?.forEach((chunk, i) => {
-            if (chunk.mapsUri) {
-                const match = chunk.mapsUri.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-                if (match) markers.push({ id: `m-${i}`, name: chunk.title || 'Spot', lat: parseFloat(match[1]), lng: parseFloat(match[2]), uri: chunk.mapsUri });
+        groundingChunks.forEach((chunk, index) => {
+            if (chunk.maps) {
+                const match = chunk.maps.uri.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+                if (match && match[1] && match[2]) {
+                    markers.push({ 
+                        id: `m-${index}`, 
+                        name: chunk.maps.title || 'Spot', 
+                        lat: parseFloat(match[1]), 
+                        lng: parseFloat(match[2]), 
+                        uri: chunk.maps.uri 
+                    });
+                }
             }
         });
-        return { story: result.response.text(), markers };
+        return { story: response.text, markers, groundingChunks };
     });
 };
 
-// --- 3. MULTIMEDIA HUB (Veo Video & Nano Banana Image) ---
-export const generateAIVideo = async (prompt: string, base64Image: string, mimeType: string): Promise<string> => {
-    const model = genAI.getGenerativeModel({ model: 'veo-1' });
-    const result = await model.generateContent([prompt, { inlineData: { data: base64Image.split(',')[1], mimeType } }]);
-    return result.response.text(); // Returns URI
-};
-
-export const generateAIImage = async (prompt: string, aspectRatio: string, size: string): Promise<string> => {
-    const model = genAI.getGenerativeModel({ model: 'imagen-3' });
-    const result = await model.generateContent(prompt);
-    const part = result.response.candidates[0].content.parts.find(p => p.inlineData);
-    if (!part) throw new Error("Synthesis failed.");
-    return `data:image/png;base64,${part.inlineData.data}`;
-};
-
-// --- 4. TRAVEL LOGISTICS (Hotels, Routes, Flights) ---
-export const getHotelSuggestions = async (loc: string, profile: UserProfile): Promise<any[]> => {
+export const getPlaceInformation = async (placeName: string, profile: UserProfile): Promise<PlaceInfo> => {
     return callWithRetry(async () => {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const result = await model.generateContent(`Vegetarian hotels in ${loc}. JSON output.`);
-        return JSON.parse(result.response.text() || "[]");
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Provide historical, cultural, and travel metadata for: "${placeName}". Return JSON.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        history: { type: Type.STRING },
+                        attractions: { 
+                            type: Type.ARRAY, 
+                            items: { 
+                                type: Type.OBJECT, 
+                                properties: { 
+                                    name: { type: Type.STRING }, 
+                                    description: { type: Type.STRING } 
+                                } 
+                            } 
+                        },
+                        customs: { type: Type.STRING }
+                    }
+                }
+            }
+        });
+        return JSON.parse(response.text || "{}");
     });
 };
 
-export const getUnifiedTransitStatus = async (id: string): Promise<TransitStatus> => {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(`Status for transit ID: ${id}. Google Search grounded.`);
-    return JSON.parse(result.response.text() || "{}");
+export const getRouteStrategies = async (start: string, dest: string, profile: UserProfile, options: any): Promise<RouteStrategies> => {
+    return callWithRetry(async () => {
+        const responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                fastest: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
+                },
+                scenic: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
+                },
+                cultural: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: { type: Type.STRING },
+                        totalDistance: { type: Type.STRING },
+                        totalDuration: { type: Type.STRING },
+                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { instruction: { type: Type.STRING }, distance: { type: Type.STRING }, duration: { type: Type.STRING } } } }
+                    },
+                    required: ["summary", "totalDistance", "totalDuration", "steps"]
+                }
+            },
+            required: ["fastest", "scenic", "cultural"]
+        };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: `Synthesize THREE specialized global route strategies from "${start}" to "${dest}". Return JSON.`,
+            config: {
+                thinkingConfig: { thinkingBudget: 8000 },
+                responseMimeType: "application/json",
+                responseSchema: responseSchema as any
+            }
+        });
+
+        return JSON.parse(response.text || "{}");
+    });
 };
 
-// --- 5. AUDIO & VOICE (BhashaSangam Hub) ---
-export const playRawPcm = async (base64Audio: string) => {
-    if (!base64Audio) return;
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    const binary = atob(base64Audio);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const dataInt16 = new Int16Array(bytes.buffer);
-    const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
-    buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start();
-};
-
-export const translateText = async (text: string, targetLang: string): Promise<string> => {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(`Translate to ${targetLang}: "${text}". Result only.`);
-    return result.response.text().trim();
-};
+export const getGlobalIntelligence = async (lat: number, lng: number, profile: UserProfile): Promise<GlobalIntelligence> => {
+    return callWithRetry(async () => {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Local Path Intelligence for Global Coordinates [${lat}, ${lng}]. Essentials, safety, and regional context for explorer ${profile.name}. Return JSON.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        location: { type: Type.STRING },
+                        essentials: {
+                            type: Type.OBJECT,
+                            properties: {
+                                cafes: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, type: { type: Type.STRING } } } },
+                                hotels: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, rating: { type: Type.STRING } } } },
+                                banks: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, services: { type: Type.STRING } } } },
+                                culture: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, type: { type: Type.STRING } } } },
+                                transport: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, type: { type: Type.STRING } } } }
+                            }
+                        },
+                        safety: {
+                            type: Type.OBJECT,
+                            properties: {
+                                police: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, address: { type: Type.STRING }, distance: { type: Type.STRING } } },
+                                hospital:

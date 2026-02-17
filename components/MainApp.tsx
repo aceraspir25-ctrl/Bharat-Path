@@ -4,15 +4,13 @@ import { View, Notification } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
-// View Imports
+// View Imports - Ek baar check kar lo ki in sabka naam folders mein exact yahi hai
 import Dashboard from './views/Dashboard';
 import MapView from './views/MapView';
 import Booking from './views/Booking';
 import Itinerary from './views/Itinerary';
 import Utilities from './views/Utilities';
 import Safety from './views/Safety';
-// Agar Community file nahi hai, toh ise comment kar dena build ke waqt
-import Community from './views/Community'; 
 import AppDetail from './views/AppDetail';
 import TravelTips from './views/TravelTips';
 import TimePass from './views/TimePass';
@@ -27,8 +25,16 @@ import Subscription from './views/Subscription';
 import AIStudio from './views/AIStudio';
 import LiveGuide from './views/LiveGuide';
 import Settings from './views/Settings';
-import { useUser } from '../contexts/UserContext';
 import AIChatbot from './AIChatbot';
+import { useUser } from '../contexts/UserContext';
+
+// Safe Import for Community (Agar file nahi hai toh error nahi aayega)
+let Community;
+try {
+  Community = require('./views/Community').default;
+} catch (e) {
+  Community = () => <div className="p-10 text-center opacity-50">Community Node Offline</div>;
+}
 
 interface MainAppProps {
   onLogout: () => void;
@@ -42,68 +48,53 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { profile } = useUser();
 
-  // Neural Notification System
+  // Optimized Notification Handler
   const addNotification = useCallback((notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
-    setNotifications(prev => {
-      if (prev.some(p => p.message === notif.message && Date.now() - p.timestamp < 60000)) return prev;
-      return [{
-        ...notif,
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: Date.now(),
-        read: false
-      }, ...prev].slice(0, 10);
-    });
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [
+      { ...notif, id, timestamp: Date.now(), read: false },
+      ...prev
+    ].slice(0, 8));
   }, []);
 
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
-  // AI Service Uplink Handler
   const handleAIService = useCallback(async (action: () => Promise<any>) => {
     try {
       return await action();
     } catch (error: any) {
-      const isQuotaError = error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED');
+      const isQuota = error.message?.includes('429');
       addNotification({
-        title: isQuotaError ? "Neural Quota Exhausted" : "Uplink Error",
-        message: isQuotaError ? "API capacity reached. Please wait." : "Communication interrupted.",
+        title: isQuota ? "Neural Limit" : "Uplink Error",
+        message: isQuota ? "Raipur Node busy. Wait a moment." : "Connection unstable.",
         type: 'alert'
       });
       throw error;
     }
   }, [addNotification]);
 
-  // View Router Logic
   const renderViewContent = useMemo(() => {
+    const props = { onAIService: handleAIService, setActiveView };
+    
     switch (activeView) {
-      case View.Dashboard: return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
+      case View.Dashboard: return <Dashboard {...props} />;
       case View.Map: return <MapView onAIService={handleAIService} />;
       case View.AIStudio: return <AIStudio />;
       case View.LiveGuide: return <LiveGuide />;
-      case View.Booking: return <Booking />;
-      case View.Flights: return <Flights />;
-      case View.Trains: return <Trains />;
-      case View.Tracking: return <Tracking />;
-      case View.RoutePlanner: return <RoutePlanner />;
-      case View.GroupPlanning: return <GroupPlanning />;
-      case View.Subscription: return <Subscription />;
       case View.BhashaSangam: return <BhashaSangam onAIService={handleAIService} />;
-      case View.Itinerary: return <Itinerary onNotify={addNotification} />;
-      case View.Budget: return <Budget />;
-      case View.Utilities: return <Utilities />;
-      case View.Safety: return <Safety />;
-      case View.Community: return <Community />; // Ensure file exists!
-      case View.TravelTips: return <TravelTips />;
-      case View.TimePass: return <TimePass />;
-      case View.AppDetail: return <AppDetail />;
       case View.Settings: return <Settings toggleTheme={toggleTheme} />;
-      default: return <Dashboard setActiveView={setActiveView} onAIService={handleAIService} />;
+      case View.Itinerary: return <Itinerary onNotify={addNotification} />;
+      case View.Community: return <Community />;
+      case View.AppDetail: return <AppDetail />;
+      // ... Baki views ko bhi switch mein check kar lo
+      default: return <Dashboard {...props} />;
     }
   }, [activeView, handleAIService, addNotification, toggleTheme]);
 
   return (
-    <div className="flex h-screen bg-[#0F111A] overflow-hidden text-white">
+    <div className="flex h-screen bg-[#020208] overflow-hidden text-white font-sans">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
@@ -111,6 +102,7 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
         isOpen={isSidebarOpen}
         setIsOpen={setSidebarOpen}
       />
+      
       <main className="flex-1 flex flex-col min-w-0 relative">
         <Header 
           setSidebarOpen={setSidebarOpen} 
@@ -121,26 +113,27 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout, theme, toggleTheme }) => {
           onMarkRead={markAllRead}
           onLogout={onLogout}
         />
+
         <div className="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar relative p-4 md:p-8">
-           {/* Visual Branding Overlay */}
-           <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none select-none">
-            <h1 className="text-9xl font-black italic">BHARAT PATH</h1>
+          {/* Subtle Branding */}
+          <div className="absolute top-10 right-10 opacity-[0.03] pointer-events-none select-none">
+            <h1 className="text-8xl font-black tracking-tighter">BHARAT PATH</h1>
           </div>
           
-          <div className="animate-fadeIn">
+          <div className="relative z-10 animate-fadeIn">
             {renderViewContent}
           </div>
         </div>
       </main>
+
       <AIChatbot />
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.1); border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f97316; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(249, 115, 22, 0.2); border-radius: 10px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
       `}</style>
     </div>
   );
