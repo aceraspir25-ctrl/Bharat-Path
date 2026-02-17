@@ -1,9 +1,30 @@
 {
-  "name": "Bharat Path: Your AI Travel Guide to India",
-  "description": "An AI-powered travel companion to explore the rich culture, history, and spirituality of India. Features full Gemini 3 integration including Thinking Mode, Veo Video Generation, and Live Conversational AI.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone",
-    "geolocation"
-  ]
+  "app_identity": {
+    "name": "Bharat Path",
+    "version": "1.0.4",
+    "build_id": "BP-2026-X1",
+    "codename": "Raipur-Alpha"
+  },
+  "technical_stack": {
+    "core_engine": "Gemini 3 Flash",
+    "vision_model": "Nano Banana",
+    "video_engine": "Veo",
+    "framework": "React 19 + Vite",
+    "ui_library": "Tailwind CSS 4.0"
+  },
+  "architecture": {
+    "founder": "Shashank Mishra",
+    "origin": "Raipur, Chhattisgarh, India",
+    "status": "Production Ready",
+    "deployment": "Vercel Global Edge"
+  },
+  "features_registry": {
+    "ai_studio": true,
+    "neural_voice": true,
+    "global_map": true,
+    "offline_sync": true
+  },
+  "requestFramePermissions": [],
+  "name": "",
+  "description": ""
 }
