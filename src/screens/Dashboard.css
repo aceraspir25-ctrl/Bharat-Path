@@ -1,0 +1,66 @@
+.dashboard { display: flex; flex-direction: column; gap: 0; }
+
+.welcome-banner {
+  background: linear-gradient(135deg, #FF6B35 0%, #F7C948 50%, #1A9E8F 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+}
+.welcome-banner::before {
+  content: 'ॐ';
+  position: absolute; right: 160px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 110px; color: rgba(255,255,255,0.08);
+  font-family: serif; line-height: 1;
+}
+.wb-greeting { font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 5px; }
+.wb-title { font-family: 'Playfair Display', serif; font-size: 24px; color: white; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+.wb-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-bottom: 18px; }
+.wb-illustration {
+  width: 110px; height: 90px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; flex-shrink: 0;
+}
+.journey-route { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; font-weight: 600; color: var(--dark); }
+.route-arrow { color: var(--muted); font-weight: 400; }
+.journey-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.progress-wrap { margin-bottom: 14px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.pct { font-weight: 600; color: var(--saffron); }
+.progress-bar { height: 6px; background: var(--cream); border-radius: 10px; overflow: hidden; display: flex; gap: 2px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--saffron), var(--gold)); border-radius: 10px; }
+.stops { display: flex; flex-direction: column; gap: 10px; }
+.stop-item { display: flex; align-items: center; gap: 10px; }
+.stop-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.stop-dot.done { background: var(--teal); }
+.stop-dot.active { background: var(--saffron); box-shadow: 0 0 0 3px rgba(255,107,53,0.2); }
+.stop-dot.pending { background: var(--border); }
+.stop-name { font-size: 12px; color: var(--dark); font-weight: 500; flex: 1; }
+.stop-date { font-size: 11px; color: var(--muted); }
+.place-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.place-item:last-child { border-bottom: none; padding-bottom: 0; }
+.place-item:first-child { padding-top: 0; }
+.place-img { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.place-name { font-size: 13px; font-weight: 600; color: var(--dark); margin-bottom: 3px; }
+.place-loc { font-size: 11px; color: var(--muted); }
+.place-rating { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--dark); }
+.ai-card { background: linear-gradient(135deg, #1A1A2E, #16213E); border-radius: 16px; padding: 20px; color: white; position: relative; overflow: hidden; }
+.ai-card::before { content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px; background: rgba(247,201,72,0.1); border-radius: 50%; }
+.ai-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; font-weight: 600; }
+.ai-msg { font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.7; margin-bottom: 14px; }
+.ai-hl { color: var(--gold); font-weight: 600; }
+.budget-total { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+.budget-amount { font-size: 28px; font-weight: 700; color: var(--dark); font-family: 'Playfair Display', serif; }
+.budget-lbl { font-size: 12px; color: var(--muted); }
+.budget-bar-wrap { margin: 12px 0; }
+.budget-bar { height: 8px; background: var(--cream); border-radius: 10px; overflow: hidden; display: flex; gap: 2px; }
+.budget-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.bl-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.bl-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }

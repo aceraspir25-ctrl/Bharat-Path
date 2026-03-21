@@ -1,0 +1,93 @@
+.sidebar {
+  width: 220px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(10, 11, 20, 0.98));
+  border-right: 1px solid rgba(148, 163, 184, 0.15);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+}
+.sidebar-logo {
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+.logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--saffron), var(--gold));
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #F8FAFC;
+}
+.logo-sub {
+  font-size: 9px;
+  color: #94A3B8;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-left: 44px;
+}
+.sidebar-nav {
+  padding: 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.nav-section {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 10px 10px 4px;
+  font-weight: 500;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #94A3B8;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { background: rgba(30, 41, 59, 0.8); color: #E2E8F0; }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 191, 36, 0.14));
+  color: #FDBA74;
+  font-weight: 600;
+  border-left-color: var(--saffron);
+}
+.nav-icon { font-size: 15px; width: 18px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--saffron);
+  color: white;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+.sidebar-user {
+  padding: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.u-name { font-size: 12px; font-weight: 600; color: #F8FAFC; }
+.u-role { font-size: 10px; color: #94A3B8; }
