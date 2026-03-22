@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../AuthContext'
 import { useLocation } from '../hooks/useLocation'
+import { useGooglePlaces } from '../hooks/useGooglePlaces'
 import { db } from '../firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { Shield, TrainFront, Hotel, UtensilsCrossed, Library, Building2 } from 'lucide-react'
@@ -59,6 +60,7 @@ async function callGroq({ apiKey, model, prompt }) {
 export default function AIChat() {
   const { user } = useAuth()
   const { coords, loading: locationLoading, error: locationError, detectLocation } = useLocation()
+  const { places: nearbyServices, loading: placesLoading } = useGooglePlaces(coords)
   const userName = useMemo(() => user?.displayName?.split(' ')[0]?.trim() || 'Traveler', [user?.displayName])
   const [msgs, setMsgs] = useState([{ me: false, text: `Namaste ${userName}! 🙏\n\nMain Bharat Path Master AI hoon — India ka sabse smart spiritual travel guide!\n\nKahan jaana chahte ho? Koi bhi sawaal poochho — temples, routes, budget, itinerary, sab kuch bataunga! ✨`, time: new Date() }])
   const [input, setInput] = useState('')
@@ -134,22 +136,7 @@ export default function AIChat() {
 
   const formatTime = (date) => date ? new Date(date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''
 
-  const nearbyServices = useMemo(() => {
-    const baseLat = coords?.latitude ?? 21.2514
-    const baseLng = coords?.longitude ?? 81.6296
-    const mk = (name, dx, dy) => ({
-      name,
-      distance: `${(Math.abs(dx) + Math.abs(dy) + 0.7).toFixed(1)} km`,
-      lat: (baseLat + dx).toFixed(4),
-      lng: (baseLng + dy).toFixed(4),
-    })
-
-    return {
-      safety: [mk('City Police Station', 0.012, 0.009), mk('District Hospital', -0.021, 0.016)],
-      transit: [mk('Central Railway Station', 0.018, -0.011), mk('Inland Port Terminal', -0.013, -0.02)],
-      lifestyle: [mk('Top-rated Hotel', 0.006, 0.014), mk('Traveler Cafe', -0.009, 0.008), mk('Knowledge Library', 0.011, -0.006), mk('Spice Route Restaurant', -0.018, 0.01)],
-    }
-  }, [coords?.latitude, coords?.longitude])
+  // Dynamic Google Places fetched via useGooglePlaces Hook
 
   return (
     <div style={{ background: '#0A0B14', minHeight: '100%', padding: 16, display: 'flex', gap: 14, height: 'calc(100vh - 80px)', boxSizing: 'border-box' }}>
@@ -289,47 +276,63 @@ export default function AIChat() {
         {/* Location + Nearby Services */}
         <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#FF9933', marginBottom: 10 }}>Auto-Location Engine</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
-            {locationLoading && 'Detecting coordinates...'}
-            {!locationLoading && coords && `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`}
-            {!locationLoading && !coords && !locationError && 'Location not available yet.'}
-            {locationError && `Error: ${locationError}`}
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {(locationLoading || placesLoading) ? (
+              <>
+                <div style={{ width: 12, height: 12, border: '2px solid rgba(255,153,51,0.3)', borderTopColor: '#FF9933', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <span>Detecting coordinates...</span>
+              </>
+            ) : coords ? (
+              `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+            ) : locationError ? (
+              `Error: ${locationError}`
+            ) : (
+              'Location not available yet.'
+            )}
           </div>
-          <button type="button" onClick={detectLocation} style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(249,115,22,0.5)', background: 'rgba(249,115,22,0.15)', color: '#F97316', padding: '8px 10px', cursor: 'pointer', fontSize: 11 }}>
+          <button type="button" onClick={detectLocation} disabled={locationLoading || placesLoading} style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(249,115,22,0.5)', background: 'rgba(249,115,22,0.15)', color: '#F97316', padding: '8px 10px', cursor: (locationLoading || placesLoading) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: (locationLoading || placesLoading) ? 0.6 : 1 }}>
             Refresh Location
           </button>
+          
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', marginTop: 12, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Shield size={13} color="#F97316" /> Safety
           </div>
-          {nearbyServices.safety.map((item) => (
-            <div key={item.name} style={nearbyItemStyle}>
-              <span>{item.name}</span>
-              <span style={{ color: '#F97316' }}>{item.distance}</span>
-            </div>
+          {nearbyServices.safety.map((item, i) => (
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${item.place_id || item.lat+','+item.lng}`} target="_blank" rel="noopener noreferrer" key={i} style={{ textDecoration: 'none' }}>
+              <div style={{ ...nearbyItemStyle, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.borderColor='#FF9933'} onMouseOut={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+                <span style={{ color: 'rgba(255,255,255,0.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{item.name}</span>
+                <span style={{ color: '#F97316' }}>{item.distance}</span>
+              </div>
+            </a>
           ))}
+
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <TrainFront size={13} color="#F97316" /> Transit
           </div>
-          {nearbyServices.transit.map((item) => (
-            <div key={item.name} style={nearbyItemStyle}>
-              <span>{item.name}</span>
-              <span style={{ color: '#F97316' }}>{item.distance}</span>
-            </div>
+          {nearbyServices.transit.map((item, i) => (
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${item.place_id || item.lat+','+item.lng}`} target="_blank" rel="noopener noreferrer" key={i} style={{ textDecoration: 'none' }}>
+              <div style={{ ...nearbyItemStyle, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.borderColor='#FF9933'} onMouseOut={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+                <span style={{ color: 'rgba(255,255,255,0.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{item.name}</span>
+                <span style={{ color: '#F97316' }}>{item.distance}</span>
+              </div>
+            </a>
           ))}
+
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Hotel size={13} color="#F97316" /> Lifestyle
           </div>
           {nearbyServices.lifestyle.map((item, i) => (
-            <div key={item.name} style={nearbyItemStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {i === 0 && <Building2 size={12} />}
-                {i === 1 && <UtensilsCrossed size={12} />}
-                {i === 2 && <Library size={12} />}
-                {i === 3 && <UtensilsCrossed size={12} />}
-                {item.name}
-              </span>
-              <span style={{ color: '#F97316' }}>{item.distance}</span>
-            </div>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${item.place_id || item.lat+','+item.lng}`} target="_blank" rel="noopener noreferrer" key={i} style={{ textDecoration: 'none' }}>
+              <div style={{ ...nearbyItemStyle, cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.borderColor='#FF9933'} onMouseOut={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                  {item.type === 'Hotel' && <Building2 size={12} />}
+                  {(item.type === 'Cafe' || item.type === 'Restaurant') && <UtensilsCrossed size={12} />}
+                  {item.type === 'Library' && <Library size={12} />}
+                  {item.name}
+                </span>
+                <span style={{ color: '#F97316' }}>{item.distance}</span>
+              </div>
+            </a>
           ))}
         </div>
 
@@ -373,6 +376,10 @@ export default function AIChat() {
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
           30% { transform: translateY(-6px); opacity: 1; }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>
