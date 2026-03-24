@@ -6,6 +6,7 @@ const navItems = [
   { id: 'booking', icon: '✈', label: 'Booking', badge: '3', section: null },
   { id: 'itinerary', icon: '☰', label: 'Itinerary Planner', section: null },
   { id: 'budget', icon: '₹', label: 'Utility Addons', section: 'Features' },
+  { id: 'subscription', icon: '💎', label: 'Pro Plans', section: null },
   { id: 'community', icon: '◉', label: 'Community', badge: '5', section: null },
   { id: 'chat', icon: '◈', label: 'AI Chatbot', section: null },
   { id: 'safety', icon: '⚑', label: 'Safety', section: null },

@@ -350,9 +350,21 @@
    ═══════════════════════════════════ */
 .db-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr; /* Mobile stacked */
   gap: 16px;
   z-index: 1;
+}
+
+@media (min-width: 500px) {
+  .db-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .db-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .db-stat-card {
@@ -496,9 +508,15 @@
    ═══════════════════════════════════ */
 .db-mid-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr; /* Mobile stacked */
   gap: 16px;
   z-index: 1;
+}
+
+@media (min-width: 1024px) {
+  .db-mid-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .db-journey-route {

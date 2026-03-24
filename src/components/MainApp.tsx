@@ -11,6 +11,7 @@ import Budget from '../screens/Budget'
 import Community from '../screens/Community'
 import AIChat from '../screens/AIChat'
 import Safety from '../screens/Safety'
+import Subscription from '../screens/Subscription'
 import '../App.css'
 
 function LoginCard() {
@@ -106,6 +107,7 @@ export default function MainApp() {
       utility: <Budget />,
       budget: <Budget />,
       safety: <Safety />,
+      subscription: <Subscription />,
     }),
     []
   )
@@ -124,6 +126,7 @@ export default function MainApp() {
       utility: 'Budget Hub',
       budget: 'Budget Hub',
       safety: 'Safety Center',
+      subscription: 'Premium Plans',
     }),
     []
   )
