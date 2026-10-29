@@ -1,0 +1,42 @@
+name: JARVIS Telegram Workflow Alerts
+
+on:
+  workflow_run:
+    workflows:
+      - "Bharat Path CI"
+      - "Bharat Path CodeQL"
+    types: [completed]
+    branches: ["main"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send failure alert when Telegram secrets are configured
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+            echo "::warning::Telegram secrets are not configured; notification skipped."
+            exit 0
+          fi
+          message="🚨 JARVIS alert: workflow failed
+          Repository: $REPOSITORY
+          Workflow: $WORKFLOW_NAME
+          Run: $RUN_URL"
+          curl --silent --show-error --fail --max-time 15             --output /dev/null             --request POST             --data-urlencode "chat_id=$TELEGRAM_CHAT_ID"             --data-urlencode "text=$message"             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             2>/dev/null || {
+              echo "::warning::Telegram delivery failed. Check repository secret configuration."
+              exit 0
+            }
